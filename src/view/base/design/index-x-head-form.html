@@ -1,0 +1,33 @@
+<div v-if="idx===-1" class="layui-tab layui-tab-brief">
+    <ul class="layui-tab-title notselect">
+        <li class="layui-this">标题设置</li>
+        <li>页面设置</li>
+    </ul>
+    <div class="layui-tab-content padding-right-30">
+        <div class="layui-tab-item layui-show notselect">
+            <div class="layui-form-item padding-left-10 help-block">
+                温馨提示：顶部导航条颜色配置只针对 App 及 小程序有效 ~
+            </div>
+            <label class="layui-form-item relative flex label-required-null">
+                <span class="design-form-label label-required-prev">页面标题</span>
+                <input class="layui-input flex-1" required v-model="page.head.name" placeholder="请输入页面标题">
+            </label>
+            <div class="layui-form-item flex">
+                <span class="design-form-label">文字颜色</span>
+                <div class="flex-1 relative flex">
+                    <label class="flex-1">
+                        <input :value="page.head.style.color" placeholder="请选择颜色" class="layui-input layui-bg-gray font-code text-center" readonly>
+                    </label>
+                    <button type="button" v-for="(xx,xid) in ['#FFFFFF','#000000']" @click="$set(page.head.style,'color',xx)" :style="showBgcolor(xx)" class="layui-btn margin-left-10"></button>
+                </div>
+            </div>
+            <div class="layui-form-item flex">
+                <span class="design-form-label">背景颜色</span>
+                <color-picker :mstyle="page.head.style" mfield="backgroundColor" mtype="hex"></color-picker>
+            </div>
+        </div>
+        <div class="layui-tab-item">
+            <layout-setting :mstyle="page.style" mtypes="背景颜色,背景图片,背景样式"></layout-setting>
+        </div>
+    </div>
+</div>
