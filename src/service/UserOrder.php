@@ -53,7 +53,7 @@ class UserOrder
             $order->save(['puid1' => $user['puid1'], 'puid2' => $user['puid2']]);
         }
         // 刷新用户等级
-        UserUpgrade::upgrade($user['id'], true, $orderNo);
+        UserUpgrade::upgrade($user['unid'], true, $orderNo);
         // 返回操作数据
         return [$user->toArray(), $order->toArray(), $entry];
     }
@@ -125,12 +125,6 @@ class UserOrder
 
         // 订单已经支付完成
         if ($paidAmount >= $order->getAttr('amount_real')) {
-            // 已完成支付
-            try { /* 奖励余额及积分 */
-                static::confirm($orderNo);
-            } catch (\Exception $exception) {
-                trace_file($exception);
-            }
             try { /* 订单返佣处理 */
                 UserRebate::create($orderNo);
             } catch (\Exception $exception) {
