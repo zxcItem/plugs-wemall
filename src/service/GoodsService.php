@@ -5,11 +5,11 @@ declare (strict_types=1);
 namespace plugin\wemall\service;
 
 use plugin\wemall\model\ShopGoods;
-use plugin\wemall\model\ShopGoodsItem;
-use plugin\wemall\model\ShopGoodsStock;
-use plugin\wemall\model\ShopOrder;
-use plugin\wemall\model\ShopOrderCart;
-use plugin\wemall\model\ShopOrderItem;
+use plugin\shop\model\ShopGoodsItem;
+use plugin\shop\model\ShopGoodsStock;
+use plugin\shop\model\ShopOrder;
+use plugin\shop\model\ShopOrderCart;
+use plugin\shop\model\ShopOrderItem;
 use think\admin\Exception;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;

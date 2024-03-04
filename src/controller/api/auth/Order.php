@@ -17,7 +17,8 @@ use plugin\shop\service\ConfigService;
 use plugin\shop\service\ExpressService;
 use plugin\wemall\service\GoodsService;
 use plugin\shop\service\UserAction;
-use plugin\wemall\service\UserOrder;
+use plugin\shop\service\UserOrder;
+use plugin\wemall\service\UserOrder as MallUserOrder;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
@@ -72,7 +73,7 @@ class Order extends Auth
                 // 商品库存检查
                 if ($gspec['stock_sales'] + $count > $gspec['stock_total']) $this->error('库存不足！');
                 // 商品折扣处理
-                [$discountId, $discountRate] = UserOrder::discount($goods['discount_id'], $this->levelCode);
+                [$discountId, $discountRate] = MallUserOrder::discount($goods['discount_id'], $this->levelCode);
                 // 订单详情处理
                 $items[] = [
                     'unid'                  => $order['unid'],

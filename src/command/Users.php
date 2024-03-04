@@ -35,7 +35,7 @@ class Users extends Command
     protected function execute(Input $input, Output $output)
     {
         [$total, $count] = [AccountUser::mk()->count(), 0];
-        foreach (AccountUser::mk()->field('id')->order('id desc')->cursor() as $user) try {
+        foreach (AccountUser::mk()->field('id')->cursor() as $user) try {
             $this->queue->message($total, ++$count, "刷新用户 [{$user['id']}] 数据...");
             UserUpgrade::recount(intval($user['id']), true);
             $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据成功", 1);

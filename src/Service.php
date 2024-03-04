@@ -4,7 +4,12 @@ declare (strict_types=1);
 
 namespace plugin\wemall;
 
+use plugin\payment\model\PaymentRecord;
+use plugin\payment\model\PluginPaymentRecord;
+use plugin\shop\model\ShopOrder;
 use plugin\wemall\command\Users;
+use plugin\wemall\service\UserOrder;
+use plugin\wemall\service\UserRebate;
 use think\admin\Plugin;
 
 /**
@@ -33,6 +38,19 @@ class Service extends Plugin
     public function register(): void
     {
         $this->commands([Users::class]);
+
+        // 注册支付完成事件
+        $this->app->event->listen('PluginMallPaymentSuccess', function (PaymentRecord $payment) {
+            $this->app->log->notice("Event PluginMallPaymentSuccess {$payment->getAttr('order_no')}");
+            $order = ShopOrder::mk()->where(['order_no' => $payment->getAttr('order_no')])->findOrEmpty();
+            $order->isExists() && UserOrder::payment($order, $payment);
+        });
+
+        // 注册订单确认事件
+        $this->app->event->listen('PluginMallPaymentConfirm', function ($data) {
+            $this->app->log->notice("Event PluginMallPaymentConfirm {$data['order_no']}");
+            UserRebate::confirm($data['order_no']);
+        });
     }
 
     /**
