@@ -22,7 +22,7 @@ class Users extends Command
 
     public function configure()
     {
-        $this->setName('xdata:mall:users')->setDescription('同步用户关联数据');
+        $this->setName('plugin:mall:users')->setDescription('同步用户关联数据');
     }
 
     /**
@@ -38,7 +38,6 @@ class Users extends Command
         foreach (AccountUser::mk()->field('id')->order('id desc')->cursor() as $user) try {
             $this->queue->message($total, ++$count, "刷新用户 [{$user['id']}] 数据...");
             UserUpgrade::recount(intval($user['id']), true);
-            UserUpgrade::upgrade(intval($user['id']));
             $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据成功", 1);
         } catch (\Exception $exception) {
             $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据失败, {$exception->getMessage()}", 1);

@@ -1,9 +1,12 @@
+{block name="content"}
 <div class="think-box-shadow relative shadow-none">
     {include file='user/admin/parent_search'}
     <table id="UserTableSelect" data-line="3" data-url="{:request()->url()}" data-target-search="form.form-search"></table>
 </div>
 
+{/block}
 
+{block name='script'}
 <script>
     $(function () {
         $('#UserTableSelect').layTable({
@@ -16,7 +19,6 @@
                 {
                     title: '用户账号', templet: function (d) {
                         let tpls = [];
-                        tpls.push('用户等级：<b class="color-blue">VIP{{d.level_code}}</b> {{d.level_name||""}}')
                         tpls.push('关联手机：<b class="color-blue">{{d.user.phone}}</b>')
                         tpls.push('用户编号：<b class="color-blue">{{d.user.code}}</b>')
                         return laytpl(tpls.join('<br>')).render(d);
@@ -25,7 +27,6 @@
                 {
                     title: '用户姓名', templet: function (d) {
                         let tpls = [];
-                        tpls.push('用户姓名：{{d.user.username||"-"}}')
                         tpls.push('用户昵称：{{d.user.nickname||"-"}}')
                         tpls.push('注册时间：{{d.user.create_time||"-"}}')
                         return laytpl(tpls.join('<br>')).render(d);
@@ -34,10 +35,9 @@
                 {toolbar: '#SelectUserToolbar', title: '操作面板', align: 'center', width: 100, fixed: 'right'}
             ]]
         }).trigger('tool', function (item) {
-            alert('开发中...');
-            // let attr = ['商品详情', item.data.code, item.data.name];
-            // window.setItemValue(item.data, attr.join('#'));
-            $.msg.closeThisModal(this);
+            $.form.load('{:sysuri()}', {unid: this.dataset.parentUuid, pid: this.dataset.parentPid}, 'post', function (ret) {
+                if (ret.code > 0) return $.msg.closeThisModal(this);
+            });
         });
     });
 </script>
@@ -46,8 +46,9 @@
 <script type="text/html" id="SelectUserToolbar">
     <div class="padding-top-15"></div>
     {{# if (typeof checkItemValue !== 'function' || checkItemValue(d.id)){ }}
-    <a class="layui-btn layui-btn-sm" lay-event="select">选 择</a>
+    <a class="layui-btn layui-btn-sm" data-parent-uuid="{$get.unid|default=''}" data-parent-pid="{{d.unid}}" lay-event="select">选 择</a>
     {{# }else{ }}
     <a class="layui-btn layui-btn-sm layui-btn-disabled">已 选</a>
     {{# } }}
 </script>
+{/block}

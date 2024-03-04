@@ -5,9 +5,9 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\api\auth;
 
 use plugin\wemall\controller\api\Auth;
-use plugin\wemall\model\ShopConfigPoster;
-use plugin\wemall\model\ShopUserRelation;
-use plugin\wemall\service\PosterService;
+use plugin\shop\model\ShopConfigPoster;
+use plugin\account\model\AccountRelation;
+use plugin\shop\service\PosterService;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\Exception;
 use think\admin\helper\QueryHelper;
@@ -31,7 +31,7 @@ class Spread extends Auth
      */
     public function get()
     {
-        ShopUserRelation::mQuery(null, function (QueryHelper $query) {
+        AccountRelation::mQuery(null, function (QueryHelper $query) {
             $query->with(['user'])->where(['puid0' => $this->unid])->order('id desc');
             $this->success('获取数据成功！', $query->page(intval(input('page', 1)), false, false, 10));
         });

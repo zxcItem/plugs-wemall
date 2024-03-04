@@ -7,9 +7,9 @@ namespace plugin\wemall\controller\base;
 use plugin\payment\model\PaymentBalance;
 use plugin\wemall\model\ShopConfigLevel;
 use plugin\wemall\model\ShopGoods;
-use plugin\wemall\model\ShopOrder;
+use plugin\shop\model\ShopOrder;
 use plugin\wemall\model\ShopUserRebate;
-use plugin\wemall\model\ShopUserRelation;
+use plugin\account\model\AccountRelation;
 use think\admin\Controller;
 use think\db\exception\DbException;
 use think\Model;
@@ -29,7 +29,7 @@ class Report extends Controller
      */
     public function index()
     {
-        $this->usersTotal = ShopUserRelation::mk()->cache(true, 60)->count();
+        $this->usersTotal = AccountRelation::mk()->cache(true, 60)->count();
         $this->goodsTotal = ShopGoods::mk()->cache(true, 60)->where(['deleted' => 0])->count();
         $this->orderTotal = ShopOrder::mk()->cache(true, 60)->whereRaw('status >= 4')->count();
         $this->amountTotal = ShopOrder::mk()->cache(true, 60)->whereRaw('status >= 4')->sum('amount_total');
@@ -38,7 +38,7 @@ class Report extends Controller
         if (empty($this->days = $this->app->cache->get('plugin.shop.portals', []))) {
             $field = ['count(1)' => 'count', 'substr(create_time,1,10)' => 'mday'];
             // 统计用户数据
-            $model = ShopUserRelation::mk()->field($field);
+            $model = AccountRelation::mk()->field($field);
             $users = $model->whereTime('create_time', '-10 days')->group('mday')->select()->column(null, 'mday');
             // 统计订单数据
             $model = ShopOrder::mk()->field($field + ['sum(amount_total)' => 'amount']);
@@ -73,7 +73,7 @@ class Report extends Controller
 
         // 会员级别分布统计
         $levels = ShopConfigLevel::mk()->where(['status' => 1])->order('number asc')->column('number code,name,0 count', 'number');
-        foreach (ShopUserRelation::mk()->field('count(1) count,level_code level')->group('level_code')->cursor() as $vo) {
+        foreach (AccountRelation::mk()->field('count(1) count,level_code level')->group('level_code')->cursor() as $vo) {
             $levels[$vo['level']]['count'] = isset($levels[$vo['level']]) ? $vo['count'] : 0;
         }
         $this->levels = array_values($levels);

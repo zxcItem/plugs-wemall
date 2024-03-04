@@ -7,10 +7,10 @@ namespace plugin\wemall\service;
 use plugin\account\model\AccountUser;
 use plugin\wemall\model\ShopConfigDiscount;
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopOrder;
-use plugin\wemall\model\ShopOrderItem;
+use plugin\shop\model\ShopOrder;
+use plugin\shop\model\ShopOrderItem;
 use plugin\wemall\model\ShopUserRebate;
-use plugin\wemall\model\ShopUserRelation;
+use plugin\account\model\AccountRelation;
 use plugin\payment\model\PaymentTransfer;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
@@ -117,20 +117,20 @@ class UserRebate
         // 获取用户数据
         self::$unid = intval(self::$order['unid']);
         self::$user = AccountUser::mk()->findOrEmpty(self::$unid)->toArray();
-        self::$rela0 = ShopUserRelation::mk()->where(['unid' => self::$unid])->findOrEmpty()->toArray();
+        self::$rela0 = AccountRelation::mk()->where(['unid' => self::$unid])->findOrEmpty()->toArray();
         if (empty(self::$user) || empty(self::$rela0)) throw new Exception('用户不存在');
 
         // 获取直接代理数据
         if (self::$order['puid1'] > 0) {
             $map = ['unid' => self::$order['puid1']];
-            self::$rela1 = ShopUserRelation::mk()->where($map)->findOrEmpty()->toArray();
+            self::$rela1 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
             if (self::$rela1) throw new Exception('直接代理不存在');
         }
 
         // 获取间接代理数据
         if (self::$order['puid2'] > 0) {
             $map = ['unid' => self::$order['puid2']];
-            self::$rela2 = ShopUserRelation::mk()->where($map)->findOrEmpty()->toArray();
+            self::$rela2 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
             if (self::$rela2) throw new Exception('间接代理不存在');
         }
 

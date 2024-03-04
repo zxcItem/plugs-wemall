@@ -7,22 +7,6 @@
         </label>
     </div>
 
-    <!--{notempty name='upgrades'}-->
-    <div class="layui-form-item layui-inline">
-        <label class="layui-form-label">用户等级</label>
-        <div class="layui-input-inline">
-            <select class="layui-select" name="level_code">
-                <option value="">-- 全部 --</option>
-                {foreach $upgrades as $upgrade}{if input('level_code') eq $upgrade.number.''}
-                <option selected value="{$upgrade.number|default=0}">[ VIP{$upgrade.number|default='0'} ] {$upgrade.name|default=''}</option>
-                {else}
-                <option value="{$upgrade.number|default=0}">[ VIP{$upgrade.number|default='0'} ] {$upgrade.name|default=''}</option>
-                {/if}{/foreach}
-            </select>
-        </div>
-    </div>
-    <!--{/notempty}-->
-
     <div class="layui-form-item layui-inline">
         <label class="layui-form-label">注册时间</label>
         <div class="layui-input-inline">

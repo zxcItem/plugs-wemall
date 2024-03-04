@@ -31,9 +31,9 @@
             cols: [[
                 {field: 'id', title: 'ID', align: "center", width: 80},
                 {field: 'sort', title: '排序权重', align: 'center', width: 100, sort: true, templet: '#SortInputTpl'},
-                {field: 'name', title: '折扣名称', align: 'left', minWidth: 140},
+                {field: 'name', title: '折扣名称', align: 'left', minWidth: 100},
                 {
-                    field: 'items', title: '折扣方案', align: 'left', width: '33%', templet: function (d) {
+                    field: 'items', title: '折扣方案', align: 'left', width: '48%', templet: function (d) {
                         let tags = [];
                         d.items.forEach(function (item) {
                             tags.push(laytpl('<span class="layui-badge think-bg-violet">VIP{{d.level}} 折扣 {{d.discount}}%</span>').render(item));
@@ -42,8 +42,8 @@
                     }
                 },
                 {field: 'status', title: '状 态', align: 'center', width: 110, templet: '#StatusSwitchTpl'},
-                {field: 'create_time', title: '创建时间', align: 'center', minWidth: 170, sort: true},
-                {toolbar: '#toolbar', title: '操作面板', align: 'center', minWidth: 80, fixed: 'right'},
+                {field: 'create_time', title: '创建时间', align: 'center', width: 170, sort: true},
+                {toolbar: '#toolbar', title: '操作面板', align: 'center', width: 100, fixed: 'right'},
             ]]
         });
 

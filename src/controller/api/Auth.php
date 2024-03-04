@@ -6,7 +6,7 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\api;
 
 use plugin\account\controller\api\Auth as AccountAuth;
-use plugin\wemall\model\ShopUserRelation;
+use plugin\account\model\AccountRelation;
 
 /**
  * 基础授权控制器
@@ -35,7 +35,7 @@ abstract class Auth extends AccountAuth
      */
     protected function withUserRelation(): Auth
     {
-        $relation = ShopUserRelation::mk()->where(['unid' => $this->unid])->findOrEmpty();
+        $relation = AccountRelation::mk()->where(['unid' => $this->unid])->findOrEmpty();
         $this->relation = $relation->toArray();
         $this->levelCode = intval($relation->getAttr('level_code'));
         $this->levelName = $relation->getAttr('level_name') ?: '普通用户';

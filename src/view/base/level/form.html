@@ -72,7 +72,7 @@
 
         <div class="layui-form-item">
             <span class="help-label label-required-prev"><b>团队计数</b>Team Count</span>
-            {empty name='vo.upgrade_team'}{assign name='vo.upgrade_team' value='1'}{/empty}
+            {empty name='vo.upgrade_team'}{assign name='vo.upgrade_team' value='0'}{/empty}
             <div class="layui-textarea help-checks">
                 {foreach ['不参与团队计数','参与团队计数'] as $k => $v}
                 <label class="think-radio">
@@ -88,7 +88,7 @@
 
         <div class="layui-form-item">
             <span class="help-label label-required-prev"><b>升级规则</b>Upgrade Type</span>
-            {empty name='vo.upgrade_type'}{assign name='vo.upgrade_type' value='1'}{/empty}
+            {empty name='vo.upgrade_type'}{assign name='vo.upgrade_type' value='0'}{/empty}
             <div class="layui-textarea help-checks">
                 {foreach ['达成任意条件','达成全部条件'] as $k => $v}
                 <label class="think-radio">

@@ -6,7 +6,6 @@
             <input class="layui-input" name="user" placeholder="请输入用户账号" value="{$get.user|default=''}">
         </label>
     </div>
-
     <!--{notempty name='upgrades'}-->
     <div class="layui-form-item layui-inline">
         <label class="layui-form-label">用户等级</label>
@@ -51,13 +50,12 @@
                     item.user.nickname || '-',
                     item.user.phone || '-',
                     item.user.email || '-',
-                    'VIP' + (item.level_code || '0') + ' ' + (item.level_name || ''),
                     item.user.create_time || '',
                 ];
             });
 
             // 设置表头内容
-            data.unshift(['ID', '用户编号', '用户姓名', '用户昵称', '关联手机', '绑定邮箱', '用户等级', '注册时间']);
+            data.unshift(['ID', '用户编号', '用户姓名', '用户昵称', '关联手机', '绑定邮箱', '注册时间']);
 
             // 应用表格样式
             return this.withStyle(data, {H: 120});

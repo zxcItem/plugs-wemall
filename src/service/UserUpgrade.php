@@ -4,14 +4,15 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
+use plugin\account\model\AccountRelation;
 use plugin\account\model\AccountUser;
 use plugin\payment\model\PaymentBalance;
 use plugin\payment\service\BalanceService;
 use plugin\payment\service\IntegralService;
+use plugin\shop\model\ShopOrder;
+use plugin\shop\model\ShopOrderItem;
+use plugin\shop\service\UserAction;
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopOrder;
-use plugin\wemall\model\ShopOrderItem;
-use plugin\wemall\model\ShopUserRelation;
 use think\admin\Exception;
 use think\admin\Library;
 use think\db\exception\DataNotFoundException;
@@ -37,7 +38,7 @@ class UserUpgrade
     public static function withAgent(int $unid, int $puid, ?array $relation = null): array
     {
         if (empty($relation)) {
-            $relation = ShopUserRelation::mk()->where(['unid' => $unid])->findOrEmpty()->toArray();
+            $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty()->toArray();
             if ($relation) throw new Exception("无效的关联信息");
         }
         // 绑定代理数据
@@ -46,7 +47,7 @@ class UserUpgrade
         $puid2 = $relation['puid2'] ?? 0; // 上2级代理
         if (empty($puid) && empty($puid1) && $puid0 > 0) {
             $puid1 = $puid0;
-            $puid2 = intval(ShopUserRelation::mk()->where(['unid' => $puid0])->value('puid1'));
+            $puid2 = intval(AccountRelation::mk()->where(['unid' => $puid0])->value('puid1'));
         } elseif ($puid > 0 && empty($puid1)) {
             $puid1 = $puid;
             $puid2 = self::bindAgent($unid, $puid1, 0)['puid1'] ?? 0;
@@ -65,7 +66,7 @@ class UserUpgrade
     public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): array
     {
         try {
-            $user = ShopUserRelation::mk()->where(['unid' => $unid])->findOrEmpty();
+            $user = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
             if ($user->isEmpty()) throw new Exception('查询用户失败');
             if ($user->getAttr('puid1') && $mode !== 2) throw new Exception('已经绑定代理');
             // 检查代理用户
@@ -73,36 +74,36 @@ class UserUpgrade
             if (empty($puid)) throw new Exception('代理不存在');
             if ($unid == $puid) throw new Exception('不能绑定自己');
             // 检查代理资格
-            $agent = ShopUserRelation::mk()->where(['unid' => $puid])->findOrEmpty();
+            $agent = AccountRelation::mk()->where(['unid' => $puid])->findOrEmpty();
             if ($agent->isEmpty()) throw new Exception('代理无推荐资格');
             if (strpos($agent->getAttr('path'), ",{$unid},") !== false) throw new Exception('不能绑定下级');
             Library::$sapp->db->transaction(static function () use ($user, $agent, $mode) {
                 // 更新用户代理
-                $path1 = rtrim($agent['path'] ?: ',', ',') . ",{$agent['id']},";
+                $path1 = rtrim($agent['path'] ?: ',', ',') . ",{$agent['unid']},";
                 $user->save([
                     'pids'  => $mode > 0 ? 1 : 0,
                     'path'  => $path1,
-                    'puid0' => $agent['id'],
-                    'puid1' => $agent['id'],
+                    'puid0' => $mode > 0 ? 0 : $agent['unid'],
+                    'puid1' => $agent['unid'],
                     'puid2' => $agent['puid1'],
                     'layer' => substr_count($path1, ',')
                 ]);
                 // 更新下级代理
-                $path2 = ",{$user['path']}{$user['id']},";
-                if (ShopUserRelation::mk()->whereLike('path', "{$path2}%")->count() > 0) {
-                    foreach (ShopUserRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->select() as $item) {
-                        $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", "{$path1}{$user['id']},", $item['path'])));
+                $path2 = ",{$user['unid']},";
+                if (AccountRelation::mk()->whereLike('path', "{$path2}%")->count() > 0) {
+                    foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->select() as $item) {
+                        $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", "{$path1}{$user['unid']},", $item['path'])));
                         $item->save([
                             'path'  => $path3,
-                            'puid0' => $attr[0] ?? 0,
+                            'puid0' => $mode > 0 ? 0 : $attr[0],
                             'puid1' => $attr[0] ?? 0,
                             'puid2' => $attr[1] ?? 0,
-                            'layer' => substr_count($path3, '-')
+                            'layer' => substr_count($path3, ',')
                         ]);
                     }
                 }
             });
-            static::upgrade($user['id']);
+            static::upgrade($user['unid']);
             return $agent->toArray();
         } catch (Exception $exception) {
             throw $exception;
@@ -124,7 +125,7 @@ class UserUpgrade
     public static function upgrade(int $unid, bool $parent = true, ?string $orderNo = null): bool
     {
         $user = AccountUser::mk()->findOrEmpty($unid);
-        $relation = ShopUserRelation::mk()->where(['unid' => $unid])->findOrEmpty();
+        $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
         if ($user->isEmpty() || $relation->isEmpty()) return true;
         $levelCurr = $relation['level_code'];
         // 初始化等级参数
@@ -133,8 +134,8 @@ class UserUpgrade
         // 统计用户数据
         foreach ($levels as $level => $vo) if ($vo['upgrade_team'] === 1) $levelTeams[] = $level;
         $orderAmount = ShopOrder::mk()->where("unid={$unid} and status>=4")->sum('amount_total');
-        $teamsDirect = ShopUserRelation::mk()->where(['puid1' => $unid])->whereIn('level_code', $levelTeams)->count();
-        $teamsIndirect = ShopUserRelation::mk()->where(['puid2' => $unid])->whereIn('level_code', $levelTeams)->count();
+        $teamsDirect = AccountRelation::mk()->where(['puid1' => $unid])->whereIn('level_code', $levelTeams)->count();
+        $teamsIndirect = AccountRelation::mk()->where(['puid2' => $unid])->whereIn('level_code', $levelTeams)->count();
         $teamsUsers = $teamsDirect + $teamsIndirect;
         // 动态计算用户等级
         foreach (array_reverse($levels) as $item) {
@@ -159,11 +160,6 @@ class UserUpgrade
             [$levelName, $levelCode] = [$levels[$tmpCode]['name'], $levels[$tmpCode]['number']];
         } else {
             $orderNo = null;
-        }
-        // 后台余额充值升级
-        $tmpCode = PaymentBalance::mk()->where(['unid' => $unid, 'deleted' => 0])->max('upgrade');
-        if ($tmpCode > $levelCode && isset($levels[$tmpCode])) {
-            [$levelName, $levelCode] = [$levels[$tmpCode]['name'], $levels[$tmpCode]['number']];
         }
         // 统计用户订单金额
         $orderAmountTotal = ShopOrder::mk()->whereRaw("unid={$unid} and status>=4")->sum('amount_goods');
@@ -207,7 +203,6 @@ class UserUpgrade
     public static function recount(int $unid, bool $syncRelation = false)
     {
         if ($syncRelation) {
-            ShopUserRelation::sync($unid);
             static::upgrade($unid);
         }
         $data = [];

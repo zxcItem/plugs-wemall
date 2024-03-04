@@ -6,9 +6,11 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\user;
 
 use plugin\account\model\AccountUser;
+use plugin\wemall\service\UserUpgrade;
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopUserRelation;
+use plugin\account\model\AccountRelation;
 use think\admin\Controller;
+use think\admin\Exception;
 use think\admin\helper\QueryHelper;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;
@@ -32,7 +34,7 @@ class Admin extends Controller
     public function index()
     {
         $this->type = $this->get['type'] ?? 'index';
-        ShopUserRelation::mQuery()->layTable(function () {
+        AccountRelation::mQuery()->layTable(function () {
             $this->title = '用户关系管理';
             $this->upgrades = ShopConfigLevel::items();
         }, function (QueryHelper $query) {
@@ -52,7 +54,7 @@ class Admin extends Controller
      */
     public function sync()
     {
-        $this->_queue('刷新会员用户数据', 'xdata:mall:users');
+        $this->_queue('刷新会员用户数据', 'plugin:mall:users');
     }
 
     /**
@@ -61,7 +63,7 @@ class Admin extends Controller
      */
     public function state()
     {
-        AccountUser::mSave($this->_vali([
+        AccountRelation::mSave($this->_vali([
             'status.in:0,1'  => '状态值范围异常！',
             'status.require' => '状态值不能为空！',
         ]));
@@ -73,7 +75,7 @@ class Admin extends Controller
      */
     public function remove()
     {
-        AccountUser::mDelete();
+        AccountRelation::mDelete();
     }
 
     /**
@@ -86,6 +88,17 @@ class Admin extends Controller
      */
     public function parent()
     {
-        $this->index();
+        if($this->request->isGet()){
+            $this->index();
+        }else{
+            try {
+                $data = $this->_vali(['pid.require' => '待绑定代理不能为空！', 'unid.require' => '待操作用户不能为空！']);
+                UserUpgrade::bindAgent(intval($data['unid']), intval($data['pid']), 2);
+                sysoplog('前端用户管理', "修改用户[{$data['unid']}]的代理为用户[{$data['pid']}]");
+                $this->success('上级修改成功！');
+            } catch (Exception $exception) {
+                $this->error($exception->getMessage());
+            }
+        }
     }
 }

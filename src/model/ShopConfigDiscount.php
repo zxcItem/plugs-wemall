@@ -30,7 +30,7 @@ class ShopConfigDiscount extends Abs
     {
         $query = self::mk()->where(['status' => 1, 'deleted' => 0]);
         $items = $allow ? ['0' => ['id' => '0', 'name' => '无折扣']] : [];
-        return $items + $query->order('sort desc,id desc')->field('id,name,items')->select()->toArray();
+        return array_merge($items,$query->order('sort desc,id desc')->field('id,name,items')->select()->toArray());
     }
 
     /**
