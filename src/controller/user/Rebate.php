@@ -59,6 +59,15 @@ class Rebate extends Controller
     }
 
     /**
+     * @param array $data
+     * @return void
+     */
+    protected function _index_page_filter(array &$data)
+    {
+        foreach ($data as &$vo) $vo['status'] = $vo['status'] ? '已生效' : '未生效';
+    }
+
+    /**
      * 用户返佣配置
      * @auth true
      * @throws Exception

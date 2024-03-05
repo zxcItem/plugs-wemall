@@ -57,7 +57,7 @@
                 {
                     title: '推荐用户', width: 200, templet: function (d) {
                         let tpls = [];
-                        if (d.form) {
+                        if (d.from) {
                             tpls.push('用户昵称：{{d.from.nickname||d.from.username||"-"}}');
                             tpls.push('用户手机：<b class="font-code">{{d.from.phone}}</b>');
                         } else {

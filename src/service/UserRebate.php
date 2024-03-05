@@ -5,6 +5,7 @@ declare (strict_types=1);
 namespace plugin\wemall\service;
 
 use plugin\account\model\AccountUser;
+use plugin\payment\service\BalanceService;
 use plugin\wemall\model\ShopConfigDiscount;
 use plugin\wemall\model\ShopConfigLevel;
 use plugin\shop\model\ShopOrder;
@@ -124,23 +125,21 @@ class UserRebate
         if (self::$order['puid1'] > 0) {
             $map = ['unid' => self::$order['puid1']];
             self::$rela1 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
-            if (self::$rela1) throw new Exception('直接代理不存在');
+            if (empty(self::$rela1)) throw new Exception('直接代理不存在');
         }
 
         // 获取间接代理数据
         if (self::$order['puid2'] > 0) {
             $map = ['unid' => self::$order['puid2']];
             self::$rela2 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
-            if (self::$rela2) throw new Exception('间接代理不存在');
+            if (empty(self::$rela2)) throw new Exception('间接代理不存在');
         }
-
         // 批量发放配置奖励
         foreach (self::prizes as $k => $v) if (method_exists(static::class, $k)) {
             Library::$sapp->log->notice("订单 {$orderNo} 开始发放 [{$k}] {$v}");
             self::{strtolower($k)}($orderNo);
             Library::$sapp->log->notice("订单 {$orderNo} 完成发放 [{$k}] {$v}");
         }
-
         // 刷新用户返佣统计
         self::recount(self::$unid);
     }
@@ -290,7 +289,7 @@ class UserRebate
      * @return boolean
      * @throws Exception
      */
-    private static function _prize01(string $orderNo): bool
+    private static function first(string $orderNo): bool
     {
         if (empty(self::$rela1)) return false;
         $map = ['order_unid' => self::$unid];
@@ -323,7 +322,7 @@ class UserRebate
      * @return boolean
      * @throws Exception
      */
-    protected static function _prize02(string $orderNo): bool
+    protected static function repeat(string $orderNo): bool
     {
         $map = [];
         $map[] = ['order_no', '<>', $orderNo];
@@ -358,7 +357,7 @@ class UserRebate
      * @return boolean
      * @throws Exception
      */
-    private static function _prize03(string $orderNo): bool
+    private static function direct(string $orderNo): bool
     {
         if (empty(self::$rela1)) return false;
         $key = self::$rela0['level_code'];
@@ -387,7 +386,7 @@ class UserRebate
      * @return boolean
      * @throws Exception
      */
-    private static function _prize04(string $orderNo): bool
+    private static function indirect(string $orderNo): bool
     {
         if (empty(self::$rela2)) return false;
         $key = self::$rela0['level_code'];
@@ -418,13 +417,12 @@ class UserRebate
      * @throws DbException
      * @throws ModelNotFoundException
      */
-    private static function _prize05(string $orderNo): bool
+    private static function margin(string $orderNo): bool
     {
         $puids = array_reverse(str2arr(self::$rela0['path'], '-'));
         if (empty($puids) || self::$order['amount_total'] <= 0) return false;
         // 获取可以参与奖励的代理
-        $vips = ShopConfigLevel::mk()->whereLike('rebate_rule', '%,' . self::pMargin . ',%')->column('number');
-        $users = AccountUser::mk()->whereIn('level_code', $vips)->whereIn('id', $puids)->orderField('id', $puids)->select()->toArray();
+        $users = AccountRelation::mk()->whereIn('unid', $puids)->orderField('unid', $puids)->select()->toArray();
         if (empty($vips) || empty($users)) return true;
         // 查询需要计算奖励的商品
         foreach (ShopOrderItem::mk()->where(['order_no' => $orderNo])->cursor() as $item) {
@@ -458,14 +456,14 @@ class UserRebate
      * @throws Exception
      * @throws DbException
      */
-    private static function _prize06(string $orderNo): bool
+    private static function manage(string $orderNo): bool
     {
         $puids = array_reverse(str2arr(self::$rela0['path'], '-'));
         if (empty($puids) || self::$order['amount_total'] <= 0) return false;
         // 记录用户原始等级
         $prevLevel = self::$rela0['level_code'];
         // 获取参与奖励的代理
-        foreach (AccountUser::mk()->whereIn('id', $puids)->orderField('id', $puids)->cursor() as $user) {
+        foreach (AccountRelation::mk()->whereIn('unid', $puids)->orderField('unid', $puids)->cursor() as $user) {
             if ($user['level_code'] > $prevLevel) {
                 if (($amount = self::_prize06amount($prevLevel + 1, $user['level_code'])) > 0.00) {
                     $map = ['unid' => $user['id'], 'type' => self::pManage, 'order_no' => $orderNo];
@@ -509,7 +507,7 @@ class UserRebate
      * @return boolean
      * @throws Exception
      */
-    private static function _prize07(string $orderNo): bool
+    private static function upgrade(string $orderNo): bool
     {
         if (empty(self::$rela1)) return false;
         if (empty(self::$user['extra']['level_order']) || self::$user['extra']['level_order'] !== $orderNo) return false;
@@ -539,12 +537,12 @@ class UserRebate
      * @param string $orderNo
      * @return boolean
      */
-    private static function _prize08(string $orderNo): bool
+    private static function equal(string $orderNo): bool
     {
         if (empty(self::$rela1)) return false;
         $map = ['level_code' => self::$rela0['level_code']];
         $unids = array_reverse(str2arr(trim(self::$rela0['path'], '-'), '-'));
-        $puids = AccountUser::mk()->whereIn('id', $unids)->orderField('id', $unids)->where($map)->column('id');
+        $puids = AccountRelation::mk()->whereIn('unid', $unids)->orderField('unid', $unids)->where($map)->column('unid');
         if (count($puids) < 2) return false;
 
         Library::$sapp->db->transaction(function () use ($map, $puids, $orderNo) {
@@ -581,6 +579,7 @@ class UserRebate
      * @param array $map 查询条件
      * @param string $name 奖励名称
      * @param float $amount 奖励金额
+     * @throws Exception
      */
     private static function wRebate(int $unid, array $map, string $name, float $amount)
     {
@@ -595,5 +594,8 @@ class UserRebate
             'order_unid'   => self::$order['unid'],
             'order_amount' => self::$order['amount_total'],
         ]));
+        $code = 'FX'.self::$order['order_no'];
+        $remark = sprintf("来自分佣订单 %s 金额 %s元 %s", self::$order['order_no'], $amount,$name);
+        BalanceService::create($unid, $code, self::name($map['type']), $amount, $remark, false);
     }
 }

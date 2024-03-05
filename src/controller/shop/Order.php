@@ -55,7 +55,7 @@ class Order extends Controller
                 [$this->total["t{$vo['status']}"] = $vo['total'], $this->total['ta'] += $vo['total']];
             }
         }, function (QueryHelper $query) {
-            $query->with(['user', 'items', 'address']);
+            $query->with(['user', 'from','items', 'address']);
             $query->equal('status')->like('order_no');
             $query->dateBetween('create_time,payment_time,cancel_time,delivery_type');
 
