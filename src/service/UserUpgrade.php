@@ -158,7 +158,8 @@ class UserUpgrade
         $tmpCode = $query->whereRaw("a.unid={$unid} and a.payment_status=1 and a.status>=4 and b.level_upgrade>-1")->max('b.level_upgrade');
         if ($tmpCode > $levelCode && isset($levels[$tmpCode])) {
             [$levelName, $levelCode] = [$levels[$tmpCode]['name'], $levels[$tmpCode]['number']];
-        } else {
+        }
+        if ($relation['level_code'] >= $levelCode) {
             $orderNo = null;
         }
         // 统计用户订单金额

@@ -48,6 +48,17 @@ class UserRebate
         self::pEqual    => '平推返佣',
     ];
 
+    public const prefix = [
+        self::pfirst    => 'ST',
+        self::pRepeat   => 'FG',
+        self::pDirect   => 'ZS',
+        self::pIndirect => 'JJ',
+        self::pMargin   => 'CE',
+        self::pManage   => 'GL',
+        self::pUpgrade  => 'SJ',
+        self::pEqual    => 'PT',
+    ];
+
     // 奖励描述配置
     public const pdescs = [
         '_' => '最高可获得%s的佣金~',
@@ -147,23 +158,21 @@ class UserRebate
     /**
      * 确认收货订单返佣
      * @param string $orderNo
-     * @return array [status, message]
+     * @return array|void
      * @throws DataNotFoundException
      * @throws DbException
+     * @throws Exception
      * @throws ModelNotFoundException
      */
-    public static function confirm(string $orderNo): array
+    public static function confirm(string $orderNo)
     {
         $map = [['status', '>=', 4], ['order_no', '=', $orderNo]];
         $order = ShopOrder::mk()->where($map)->findOrEmpty();
         if ($order->isEmpty()) return [0, '需处理的订单状态异常！'];
         $map = [['status', '=', 0], ['deleted', '=', 0], ['order_no', 'like', "{$orderNo}%"]];
         ShopUserRebate::mk()->where($map)->update(['status' => 1, 'remark' => '订单已确认收货！']);
-        if (UserUpgrade::upgrade($order->getAttr('unid'))) {
-            return [1, '重新计算用户金额成功！'];
-        } else {
-            return [0, '重新计算用户金额失败！'];
-        }
+        BalanceService::update($orderNo);
+        UserUpgrade::upgrade($order['unid'],true);
     }
 
     /**
@@ -415,15 +424,15 @@ class UserRebate
      * @return bool
      * @throws DataNotFoundException
      * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws ModelNotFoundException|Exception
      */
     private static function margin(string $orderNo): bool
     {
-        $puids = array_reverse(str2arr(self::$rela0['path'], '-'));
+        $puids = array_reverse(str2arr(self::$rela0['path'], ','));
         if (empty($puids) || self::$order['amount_total'] <= 0) return false;
         // 获取可以参与奖励的代理
         $users = AccountRelation::mk()->whereIn('unid', $puids)->orderField('unid', $puids)->select()->toArray();
-        if (empty($vips) || empty($users)) return true;
+        if (empty($users)) return true;
         // 查询需要计算奖励的商品
         foreach (ShopOrderItem::mk()->where(['order_no' => $orderNo])->cursor() as $item) {
             if ($item['discount_id'] > 0 && $item['rebate_type'] === 1) {
@@ -432,14 +441,14 @@ class UserRebate
                 $rules = json_decode(ShopConfigDiscount::mk()->where($map)->value('items', '[]'), true);
                 foreach ($users as $user) if (isset($rules[$user['level_code']]) && $user['level_code'] > $tVip) {
                     if (($rule = $rules[$user['level_code']]) && $tRate > $rule['discount']) {
-                        $map = ['unid' => $user['id'], 'type' => self::pMargin, 'order_no' => $orderNo];
+                        $map = ['unid' => $user['unid'], 'type' => self::pMargin, 'order_no' => $orderNo];
                         if (ShopUserRebate::mk()->where($map)->count() < 1) {
                             $vvvv = self::prizes[self::pMargin];
                             $dRate = ($rate = $tRate - $rule['discount']) / 100;
-                            $name = "{$vvvv}{$tVip}#{$user['level_code']}商品市场价{$item['total_selling']}元的{$rate}%";
-                            $amount = $dRate * $item['total_selling'];
+                            $name = "{$vvvv}【{$item['level_name']} => {$user['level_name']}】商品市场价{$item['total_price_market']}元的{$rate}%";
+                            $amount = $dRate * $item['total_price_market'];
                             // 写入用户返佣记录
-                            self::wRebate($user['id'], $map, $name, $amount);
+                            self::wRebate($user['unid'], $map, $name, $amount);
                         }
                         [$tVip, $tRate] = [$user['level_code'], $rule['discount']];
                     }
@@ -458,18 +467,19 @@ class UserRebate
      */
     private static function manage(string $orderNo): bool
     {
-        $puids = array_reverse(str2arr(self::$rela0['path'], '-'));
+        $puids = array_reverse(str2arr(self::$rela0['path'], ','));
         if (empty($puids) || self::$order['amount_total'] <= 0) return false;
         // 记录用户原始等级
         $prevLevel = self::$rela0['level_code'];
+        $prevName = self::$rela0['level_name'];
         // 获取参与奖励的代理
         foreach (AccountRelation::mk()->whereIn('unid', $puids)->orderField('unid', $puids)->cursor() as $user) {
             if ($user['level_code'] > $prevLevel) {
                 if (($amount = self::_prize06amount($prevLevel + 1, $user['level_code'])) > 0.00) {
-                    $map = ['unid' => $user['id'], 'type' => self::pManage, 'order_no' => $orderNo];
+                    $map = ['unid' => $user['unid'], 'type' => self::pManage, 'order_no' => $orderNo];
                     if (ShopUserRebate::mk()->where($map)->count() < 1) {
-                        $name = sprintf("%s，[ VIP%d > VIP%d ] 每单 %s 元", self::prizes[self::pManage], $prevLevel, $user['level_code'], $amount);
-                        self::wRebate($user['id'], $map, $name, $amount);
+                        $name = sprintf("%s 【%s => %s】 每单 %s 元", self::prizes[self::pManage], $prevName, $user['level_name'], $amount);
+                        self::wRebate($user['unid'], $map, $name, $amount);
                     }
                 }
                 $prevLevel = $user['level_code'];
@@ -509,17 +519,20 @@ class UserRebate
      */
     private static function upgrade(string $orderNo): bool
     {
+        p('--------用户升级奖励发放------------');p($orderNo);p(self::$user['extra']);
         if (empty(self::$rela1)) return false;
         if (empty(self::$user['extra']['level_order']) || self::$user['extra']['level_order'] !== $orderNo) return false;
+        p('用户升级奖励发放开始');
         // 创建返佣奖励记录
-        $vip = self::$rela0['level_code'];
+        $vip = self::$rela0['level_code']; p($vip);
         $map = ['type' => self::pUpgrade, 'order_no' => $orderNo, 'order_unid' => self::$unid];
-        if (self::config("upgrade_type_vip_{$vip}") > 0 && ShopUserRebate::mk()->where($map)->findOrEmpty()->isEmpty()) {
-            $value = self::config("upgrade_value_vip_{$vip}");
-            if (self::config("upgrade_type_vip_{$vip}") == 1) {
+        p(self::config("upgrade_type_vip_{$vip}_4"));
+        if (self::config("upgrade_type_vip_{$vip}_4") > 0 && ShopUserRebate::mk()->where($map)->findOrEmpty()->isEmpty()) {
+            $value = self::config("upgrade_value_vip_{$vip}");p($value);
+            if (self::config("upgrade_type_vip_{$vip}_4") == 1) {
                 $val = floatval($value ?: '0.00');
                 $name = sprintf('%s，每人 %s 元', self::prizes[self::pUpgrade], $val);
-            } elseif (self::config("upgrade_type_vip_{$vip}") == 2) {
+            } elseif (self::config("upgrade_type_vip_{$vip}_4") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
                 $name = sprintf("%s，订单金额 %s%%", self::prizes[self::pUpgrade], $value);
             } else {
@@ -541,7 +554,7 @@ class UserRebate
     {
         if (empty(self::$rela1)) return false;
         $map = ['level_code' => self::$rela0['level_code']];
-        $unids = array_reverse(str2arr(trim(self::$rela0['path'], '-'), '-'));
+        $unids = array_reverse(str2arr(trim(self::$rela0['path'], ','), ','));
         $puids = AccountRelation::mk()->whereIn('unid', $unids)->orderField('unid', $unids)->where($map)->column('unid');
         if (count($puids) < 2) return false;
 
@@ -574,6 +587,16 @@ class UserRebate
     }
 
     /**
+     * 获取奖励名称前缀
+     * @param string $prize
+     * @return string
+     */
+    public static function prefix(string $prize): string
+    {
+        return self::prefix[$prize] ?? $prize;
+    }
+
+    /**
      * 写入返佣记录
      * @param int $unid 奖励用户
      * @param array $map 查询条件
@@ -594,7 +617,7 @@ class UserRebate
             'order_unid'   => self::$order['unid'],
             'order_amount' => self::$order['amount_total'],
         ]));
-        $code = 'FX'.self::$order['order_no'];
+        $code = self::prefix($map['type']).self::$order['order_no'];
         $remark = sprintf("来自分佣订单 %s 金额 %s元 %s", self::$order['order_no'], $amount,$name);
         BalanceService::create($unid, $code, self::name($map['type']), $amount, $remark, false);
     }

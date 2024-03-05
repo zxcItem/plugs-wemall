@@ -126,6 +126,7 @@ class UserOrder
         // 订单已经支付完成
         if ($paidAmount >= $order->getAttr('amount_real')) {
             try { /* 订单返佣处理 */
+                static::confirm($orderNo);
                 UserRebate::create($orderNo);
             } catch (\Exception $exception) {
                 trace_file($exception);
