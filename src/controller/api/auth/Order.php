@@ -5,29 +5,18 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\api\auth;
 
 use plugin\payment\model\PaymentAddress;
-use plugin\payment\service\BalanceService;
-use plugin\payment\service\contract\PaymentResponse;
 use plugin\payment\service\IntegralService;
 use plugin\payment\service\Payment;
 use plugin\wemall\controller\api\Auth;
 use plugin\shop\model\ShopOrder;
 use plugin\shop\model\ShopOrderCart;
 use plugin\shop\model\ShopOrderItem;
-use plugin\shop\service\ConfigService;
-use plugin\shop\service\ExpressService;
 use plugin\wemall\service\GoodsService;
 use plugin\shop\service\UserAction;
 use plugin\shop\service\UserOrder;
 use plugin\wemall\service\UserOrder as MallUserOrder;
 use plugin\wemall\service\UserUpgrade;
-use think\admin\Exception;
 use think\admin\extend\CodeExtend;
-use think\admin\helper\QueryHelper;
-use think\admin\Storage;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
-use think\db\Query;
 use think\exception\HttpResponseException;
 
 /**

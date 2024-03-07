@@ -32,7 +32,7 @@ class Spread extends Auth
     public function get()
     {
         AccountRelation::mQuery(null, function (QueryHelper $query) {
-            $query->with(['user'])->where(['puid0' => $this->unid])->order('id desc');
+            $query->with(['user'])->where(['puid1' => $this->unid])->order('id desc');
             $this->success('获取数据成功！', $query->page(intval(input('page', 1)), false, false, 10));
         });
     }

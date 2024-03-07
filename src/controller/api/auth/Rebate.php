@@ -44,14 +44,10 @@ class Rebate extends Auth
      */
     public function prize()
     {
-        [$map, $data] = [['number' => $this->levelCode], []];
-        $prizes = ShopUserRebate::mk()->group('name')->column('name');
-        $rebate = ShopConfigLevel::mk()->where($map)->value('rebate_rule', '');
-        $codemap = array_merge($prizes, str2arr($rebate));
-        foreach (UserRebate::prizes as $code => $prize) {
-            if (in_array($code, $codemap)) $data[$code] = $prize;
-        }
-        $this->success('获取我的奖励', $data);
+        $map = ['unid' => $this->unid,'deleted' => 0,'status'=>1];
+        $prizes = ShopUserRebate::mk()->where($map)->group('type')->column('sum(amount) as total_amount,type');
+        foreach ($prizes as &$prize) $prize['name'] = UserRebate::prizes[$prize['type']];
+        $this->success('获取我的奖励', $prizes);
     }
 
     /**
