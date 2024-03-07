@@ -313,10 +313,10 @@ class UserRebate
                 $name = sprintf('%s，每单 %s 元', self::prizes[self::pfirst], $val);
             } elseif (self::config("first_type_{$key}") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
-                $name = sprintf('%s，订单金额 %s%%', self::prizes[self::pfirst], $value);
+                $name = sprintf('%s，订单金额%s元 的%s%%', self::prizes[self::pfirst],self::$order['rebate_amount'], $value);
             } else {
                 $val = floatval($value * self::$order['amount_profit'] / 100);
-                $name = sprintf('%s，分佣金额 %s%%', self::prizes[self::pfirst], $value);
+                $name = sprintf('%s，分佣金额%s元 的%s%%', self::prizes[self::pfirst],self::$order['amount_profit'], $value);
             }
             // 写入返佣记录
             self::wRebate(self::$rela1['unid'], $map, $name, $val);
@@ -349,10 +349,10 @@ class UserRebate
                 $name = sprintf("%s，每人 %s 元", self::prizes[self::pRepeat], $val);
             } elseif (self::config("repeat_type_{$key}") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
-                $name = sprintf("%s，订单金额 %s%%", self::prizes[self::pRepeat], $value);
+                $name = sprintf("%s，订单金额%s元 的%s%%", self::prizes[self::pRepeat],self::$order['rebate_amount'], $value);
             } else {
                 $val = floatval($value * self::$order['amount_profit'] / 100);
-                $name = sprintf("%s，分佣金额 %s%%", self::prizes[self::pRepeat], $value);
+                $name = sprintf("%s，分佣金额%s元 的%s%%", self::prizes[self::pRepeat],self::$order['amount_profit'], $value);
             }
             // 写入返佣记录
             self::wRebate(self::$rela1['unid'], $map, $name, $val);
@@ -378,10 +378,10 @@ class UserRebate
                 $name = sprintf("%s，每人 %s 元", self::prizes[self::pDirect], $val);
             } elseif (self::config("direct_type_vip_{$key}") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
-                $name = sprintf("%s，订单金额 %s%%", self::prizes[self::pDirect], $value);
+                $name = sprintf("%s，订单金额%s元 的%s%%", self::prizes[self::pDirect],self::$order['rebate_amount'], $value);
             } else {
                 $val = floatval($value * self::$order['amount_profit'] / 100);
-                $name = sprintf("%s，分佣金额 %s%%", self::prizes[self::pRepeat], $value);
+                $name = sprintf("%s，分佣金额%s元 的%s%%", self::prizes[self::pDirect],self::$order['amount_profit'], $value);
             }
             // 写入返佣记录
             self::wRebate(self::$rela1['unid'], $map, $name, $val);
@@ -407,10 +407,10 @@ class UserRebate
                 $name = sprintf('%s，每人 %s 元', self::prizes[self::pIndirect], $val);
             } elseif (self::config("indirect_type_vip_{$key}") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
-                $name = sprintf("%s，订单金额 %s%%", self::prizes[self::pIndirect], $value);
+                $name = sprintf("%s，订单金额%s元 的%s%%", self::prizes[self::pIndirect], self::$order['rebate_amount'],$value);
             } else {
                 $val = floatval($value * self::$order['amount_profit'] / 100);
-                $name = sprintf("%s，分佣金额 %s%%", self::prizes[self::pRepeat], $value);
+                $name = sprintf("%s，分佣金额%s元 的%s%%", self::prizes[self::pIndirect],self::$order['amount_profit'], $value);
             }
             // 写入返佣记录
             self::wRebate(self::$rela2['unid'], $map, $name, $val);
@@ -519,25 +519,22 @@ class UserRebate
      */
     private static function upgrade(string $orderNo): bool
     {
-        p('--------用户升级奖励发放------------');p($orderNo);p(self::$user['extra']);
         if (empty(self::$rela1)) return false;
         if (empty(self::$user['extra']['level_order']) || self::$user['extra']['level_order'] !== $orderNo) return false;
-        p('用户升级奖励发放开始');
         // 创建返佣奖励记录
-        $vip = self::$rela0['level_code']; p($vip);
+        $vip = self::$rela0['level_code'];
         $map = ['type' => self::pUpgrade, 'order_no' => $orderNo, 'order_unid' => self::$unid];
-        p(self::config("upgrade_type_vip_{$vip}_4"));
         if (self::config("upgrade_type_vip_{$vip}_4") > 0 && ShopUserRebate::mk()->where($map)->findOrEmpty()->isEmpty()) {
-            $value = self::config("upgrade_value_vip_{$vip}");p($value);
+            $value = self::config("upgrade_value_vip_{$vip}");
             if (self::config("upgrade_type_vip_{$vip}_4") == 1) {
                 $val = floatval($value ?: '0.00');
                 $name = sprintf('%s，每人 %s 元', self::prizes[self::pUpgrade], $val);
             } elseif (self::config("upgrade_type_vip_{$vip}_4") == 2) {
                 $val = floatval($value * self::$order['rebate_amount'] / 100);
-                $name = sprintf("%s，订单金额 %s%%", self::prizes[self::pUpgrade], $value);
+                $name = sprintf("%s，订单金额%s元 的%s%%", self::prizes[self::pUpgrade],self::$order['rebate_amount'], $value);
             } else {
                 $val = floatval($value * self::$order['amount_profit'] / 100);
-                $name = sprintf("%s，分佣金额 %s%%", self::prizes[self::pUpgrade], $value);
+                $name = sprintf("%s，分佣金额%s元 的%s%%", self::prizes[self::pUpgrade],self::$order['amount_profit'], $value);
             }
             // 写入返佣记录
             self::wRebate(self::$rela1['unid'], $map, $name, $val);
@@ -557,7 +554,6 @@ class UserRebate
         $unids = array_reverse(str2arr(trim(self::$rela0['path'], ','), ','));
         $puids = AccountRelation::mk()->whereIn('unid', $unids)->orderField('unid', $unids)->where($map)->column('unid');
         if (count($puids) < 2) return false;
-
         Library::$sapp->db->transaction(function () use ($map, $puids, $orderNo) {
             foreach ($puids as $key => $puid) {
                 // 最多两层
