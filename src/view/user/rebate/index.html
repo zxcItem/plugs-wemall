@@ -29,13 +29,13 @@
                 {field: 'id', hide: true},
                 {fixed: true, checkbox: true},
                 {
-                    title: '代理头像', width: 80, align: 'center', templet: function (d) {
+                    title: '代理头像', minWidth: 80, align: 'center', templet: function (d) {
                         if (!d.user || !d.user.headimg) return '';
                         return laytpl('<div>{{-showTableImage(d.user.headimg,true,"sm")}}</div>').render(d)
                     }
                 },
                 {
-                    title: '代理账号', width: 200, templet: function (d) {
+                    title: '代理账号', minWidth: 200, templet: function (d) {
                         let tpls = [];
                         tpls.push('账号昵称：<b>{{d.user.nickname}}</b>')
                         tpls.push('账号编号：<b>{{d.user.code}}</b>')
@@ -43,7 +43,7 @@
                     }
                 },
                 {
-                    title: '返佣信息', templet: function (d) {
+                    title: '返佣信息',minWidth: 340, templet: function (d) {
                         let tpls = [];
                         tpls.push('返佣金额：<b class="color-text">{{d.amount}}</b> 元, <b class="color-text ta-mr-10">{{d.status}}</b>')
                         tpls.push('返佣名称：{{d.name||"-"}}')
@@ -51,13 +51,13 @@
                     }
                 },
                 {
-                    title: '会员头像', width: 80, align: 'center', templet: function (d) {
+                    title: '会员头像', minWidth: 80,align: 'center', templet: function (d) {
                         if (!d.ouser || !d.ouser.headimg) return '';
                         return laytpl('<div>{{-showTableImage(d.ouser.headimg,true,"sm")}}</div>').render(d)
                     }
                 },
                 {
-                    title: '会员账号', templet: function (d) {
+                    title: '会员账号', minWidth: 200,templet: function (d) {
                         let tpls = [];
                         tpls.push('账号昵称：<b>{{d.ouser.nickname}}</b>')
                         tpls.push('账号编号：<b>{{d.ouser.code}}</b>')
@@ -65,7 +65,7 @@
                     }
                 },
                 {
-                    title: '订单信息', width: 200, templet: function (d) {
+                    title: '订单信息', minWidth: 200,templet: function (d) {
                         let tpls = [];
                         tpls.push('支付金额：<b class="color-text ta-mr-10">{{d.order_amount}}</b> 元')
                         tpls.push('订单单号：{{d.order_no||"-"}}')
@@ -73,7 +73,7 @@
                     }
                 },
                 {
-                    title: '返佣时间', templet: function (d) {
+                    title: '返佣时间', minWidth: 250,templet: function (d) {
                         let tpls = [];
                         tpls.push('返佣时间：{{d.create_time}}')
                         tpls.push('更新时间：{{d.update_time}}')

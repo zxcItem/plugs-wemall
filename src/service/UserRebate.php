@@ -563,7 +563,7 @@ class UserRebate
                 if (ShopUserRebate::mk()->where($map)->count() < 1) {
                     // 奖励金额
                     $amount = floatval(self::config("equal_value_vip_{$layer}_" . self::$rela0['level_code']));
-                    $name = sprintf("%s, 奖励每人 %s", self::prizes[self::pEqual], $amount);
+                    $name = sprintf("%s, 奖励每人 %s元", self::prizes[self::pEqual], $amount);
                     // 写入返佣
                     self::wRebate($puid, $map, $name, $amount);
                 }
