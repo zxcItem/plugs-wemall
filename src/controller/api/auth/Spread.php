@@ -45,7 +45,8 @@ class Spread extends Auth
     {
         try {
             $input = $this->_vali(['from.require' => '推荐人不能为空！']);
-            $this->success('绑定推荐人成功！', UserUpgrade::bindAgent($this->unid, intval($input['from']), 0));
+            $relation = UserUpgrade::bindAgent($this->unid, intval($input['from']), 0);
+            $this->success('绑定推荐人成功！', $relation->toArray());
         } catch (HttpResponseException $exception) {
             throw $exception;
         } catch (\Exception $exception) {

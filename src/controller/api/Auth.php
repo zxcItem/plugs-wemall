@@ -7,6 +7,7 @@ namespace plugin\wemall\controller\api;
 
 use plugin\account\controller\api\Auth as AccountAuth;
 use plugin\account\model\AccountRelation;
+use think\exception\HttpResponseException;
 
 /**
  * 基础授权控制器
@@ -25,8 +26,14 @@ abstract class Auth extends AccountAuth
      */
     protected function initialize()
     {
-        parent::initialize();
-        $this->checkUserStatus()->withUserRelation();
+        try {
+            parent::initialize();
+            $this->checkUserStatus()->withUserRelation();
+        } catch (HttpResponseException $exception) {
+            throw $exception;
+        } catch (\Exception $exception) {
+            $this->error($exception->getMessage());
+        }
     }
 
     /**
@@ -36,6 +43,7 @@ abstract class Auth extends AccountAuth
     protected function withUserRelation(): Auth
     {
         $relation = AccountRelation::mk()->where(['unid' => $this->unid])->findOrEmpty();
+        if ($relation->isEmpty()) $relation = AccountRelation::initRelation($this->unid);
         $this->relation = $relation->toArray();
         $this->levelCode = intval($relation->getAttr('level_code'));
         $this->levelName = $relation->getAttr('level_name') ?: '普通用户';

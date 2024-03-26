@@ -50,7 +50,7 @@ class UserUpgrade
             $puid2 = intval(AccountRelation::mk()->where(['unid' => $puid0])->value('puid1'));
         } elseif ($puid > 0 && empty($puid1)) {
             $puid1 = $puid;
-            $puid2 = self::bindAgent($unid, $puid1, 0)['puid1'] ?? 0;
+            $puid2 = self::bindAgent($unid, $puid1, 0)->getAttr('puid1') ?? 0;
         }
         return ['unid' => $unid, 'puid1' => $puid1, 'puid2' => $puid2];
     }
@@ -60,27 +60,31 @@ class UserUpgrade
      * @param integer $unid 用户 UNID
      * @param integer $puid 代理 UNID
      * @param integer $mode 操作类型（0临时绑定, 1永久绑定, 2强行绑定）
-     * @return array
+     * @return AccountRelation
      * @throws Exception
      */
-    public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): array
+    public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): AccountRelation
     {
         try {
-            $user = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
-            if ($user->isEmpty()) throw new Exception('查询用户失败');
-            if ($user->getAttr('puid1') && $mode !== 2) throw new Exception('已经绑定代理');
+            $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
+            if ($relation->isEmpty()) throw new Exception('查询用户失败');
+            // 已经绑定代理
+            if (($puid1 = intval($relation->getAttr('puid1'))) > 0) {
+                if ($puid1 === $puid) return $relation;
+                if ($mode !== 2) throw new Exception('已经绑定代理');
+            }
             // 检查代理用户
-            if (empty($puid)) $puid = $user->getAttr('puid0');
+            if (empty($puid)) $puid = $relation->getAttr('puid0');
             if (empty($puid)) throw new Exception('代理不存在');
             if ($unid == $puid) throw new Exception('不能绑定自己');
             // 检查代理资格
             $agent = AccountRelation::mk()->where(['unid' => $puid])->findOrEmpty();
             if ($agent->isEmpty()) throw new Exception('代理无推荐资格');
             if (strpos($agent->getAttr('path'), ",{$unid},") !== false) throw new Exception('不能绑定下级');
-            Library::$sapp->db->transaction(static function () use ($user, $agent, $mode) {
+            Library::$sapp->db->transaction(static function () use ($relation, $agent, $mode) {
                 // 更新用户代理
                 $path1 = rtrim($agent['path'] ?: ',', ',') . ",{$agent['unid']},";
-                $user->save([
+                $relation->save([
                     'pids'  => $mode > 0 ? 1 : 0,
                     'path'  => $path1,
                     'puid0' => $mode > 0 ? 0 : $agent['unid'],
@@ -89,10 +93,10 @@ class UserUpgrade
                     'layer' => substr_count($path1, ',')
                 ]);
                 // 更新下级代理
-                $path2 = ",{$user['unid']},";
+                $path2 = ",{$relation['path']}{$relation['unid']},";
                 if (AccountRelation::mk()->whereLike('path', "{$path2}%")->count() > 0) {
                     foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->select() as $item) {
-                        $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", "{$path1}{$user['unid']},", $item['path'])));
+                        $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", "{$path1}{$relation['unid']},", $item['path'])));
                         $item->save([
                             'path'  => $path3,
                             'puid0' => $mode > 0 ? 0 : $attr[0],
@@ -103,8 +107,8 @@ class UserUpgrade
                     }
                 }
             });
-            static::upgrade($user['unid']);
-            return $agent->toArray();
+            static::upgrade($relation['id']);
+            return $relation;
         } catch (Exception $exception) {
             throw $exception;
         } catch (\Exception $exception) {
@@ -204,6 +208,7 @@ class UserUpgrade
     public static function recount(int $unid, bool $syncRelation = false)
     {
         if ($syncRelation) {
+            AccountRelation::initRelation($unid);
             static::upgrade($unid);
         }
         $data = [];
