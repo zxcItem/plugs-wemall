@@ -35,22 +35,16 @@ class UserUpgrade
      * @return array
      * @throws Exception
      */
-    public static function withAgent(int $unid, int $puid, ?array $relation = null): array
+    public static function withAgent(int $unid, int $puid, $relation = null): array
     {
-        if (empty($relation)) {
-            $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty()->toArray();
-            if ($relation) throw new Exception("无效的关联信息");
-        }
+        $relation = $relation ?: AccountRelation::make($unid)->toArray();
         // 绑定代理数据
-        $puid0 = $relation['puid0'] ?? 0; // 临时绑定
         $puid1 = $relation['puid1'] ?? 0; // 上1级代理
         $puid2 = $relation['puid2'] ?? 0; // 上2级代理
-        if (empty($puid) && empty($puid1) && $puid0 > 0) {
-            $puid1 = $puid0;
-            $puid2 = intval(AccountRelation::mk()->where(['unid' => $puid0])->value('puid1'));
-        } elseif ($puid > 0 && empty($puid1)) {
-            $puid1 = $puid;
-            $puid2 = self::bindAgent($unid, $puid1, 0)->getAttr('puid1') ?? 0;
+        if (empty($relation['puid0']) && $puid > 0) {
+            $relation = self::bindAgent($unid, $puid, 0);
+            $puid1 = $relation->getAttr('puid1') ?: 0; // 上1级代理
+            $puid2 = $relation->getAttr('puid2') ?: 0; // 上2级代理
         }
         return ['unid' => $unid, 'puid1' => $puid1, 'puid2' => $puid2];
     }
@@ -66,49 +60,39 @@ class UserUpgrade
     public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): AccountRelation
     {
         try {
-            $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
-            if ($relation->isEmpty()) throw new Exception('查询用户失败');
+            $relation = AccountRelation::make($unid);
             // 已经绑定代理
-            if (($puid1 = intval($relation->getAttr('puid1'))) > 0) {
-                if ($puid1 === $puid) return $relation;
-                if ($mode !== 2) throw new Exception('已经绑定代理');
+            $puid1 = intval($relation->getAttr('puid1'));
+            if ($puid1 > 0 && $relation->getAttr('puid0') > 0) {
+                if ($puid1 !== $puid && $mode !== 0) throw new Exception('已绑定代理！');
             }
             // 检查代理用户
-            if (empty($puid)) $puid = $relation->getAttr('puid0');
-            if (empty($puid)) throw new Exception('代理不存在');
-            if ($unid == $puid) throw new Exception('不能绑定自己');
-            // 检查代理资格
-            $agent = AccountRelation::mk()->where(['unid' => $puid])->findOrEmpty();
-            if ($agent->isEmpty()) throw new Exception('代理无推荐资格');
-            if (strpos($agent->getAttr('path'), ",{$unid},") !== false) throw new Exception('不能绑定下级');
-            Library::$sapp->db->transaction(static function () use ($relation, $agent, $mode) {
+            if (empty($puid)) $puid = $puid1;
+            if (empty($puid)) throw new Exception('代理不存在！');
+            if ($unid === $puid) throw new Exception('不能绑定自己！');
+            // 检查上级用户
+            $parent = AccountRelation::make($puid);
+            if (strpos($parent->getAttr('path'), ",{$unid},") !== false) throw new Exception('不能绑定下级');
+            Library::$sapp->db->transaction(static function () use ($relation, $parent, $mode) {
                 // 更新用户代理
-                $path1 = rtrim($agent['path'] ?: ',', ',') . ",{$agent['unid']},";
+                $path1 = rtrim($parent->getAttr('path') ?: ',', ',') . ",{$parent->getAttr('unid')},";
                 $relation->save([
                     'pids'  => $mode > 0 ? 1 : 0,
                     'path'  => $path1,
-                    'puid0' => $mode > 0 ? 0 : $agent['unid'],
-                    'puid1' => $agent['unid'],
-                    'puid2' => $agent['puid1'],
+                    'puid0' => $mode > 0 ? 1 : 0,
+                    'puid1' => $parent->getAttr('unid'),
+                    'puid2' => $parent->getAttr('puid1'),
                     'layer' => substr_count($path1, ',')
                 ]);
                 // 更新下级代理
-                $path2 = ",{$relation['path']}{$relation['unid']},";
-                if (AccountRelation::mk()->whereLike('path', "{$path2}%")->count() > 0) {
-                    foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->select() as $item) {
-                        $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", "{$path1}{$relation['unid']},", $item['path'])));
-                        $item->save([
-                            'path'  => $path3,
-                            'puid0' => $mode > 0 ? 0 : $attr[0],
-                            'puid1' => $attr[0] ?? 0,
-                            'puid2' => $attr[1] ?? 0,
-                            'layer' => substr_count($path3, ',')
-                        ]);
-                    }
+                $path2 = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
+                foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->cursor() as $item) {
+                    $text = arr2str(str2arr("{$path1},{$relation->getAttr('unid')}"));
+                    $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", $text, $item->getAttr('path'))));
+                    $item->save(['path' => $path3, 'puid1' => $attr[0] ?? 0, 'puid2' => $attr[1] ?? 0]);
                 }
             });
-            static::upgrade($relation['id']);
-            return $relation;
+            return static::upgrade($relation->getAttr('unid'));
         } catch (Exception $exception) {
             throw $exception;
         } catch (\Exception $exception) {
@@ -121,17 +105,15 @@ class UserUpgrade
      * @param integer $unid 指定用户UID
      * @param boolean $parent 同步计算上级
      * @param ?string $orderNo 升级触发订单
-     * @return boolean
+     * @return AccountRelation
      * @throws DataNotFoundException
      * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws ModelNotFoundException|Exception
      */
-    public static function upgrade(int $unid, bool $parent = true, ?string $orderNo = null): bool
+    public static function upgrade(int $unid, bool $parent = true, ?string $orderNo = null): AccountRelation
     {
-        $user = AccountUser::mk()->findOrEmpty($unid);
-        $relation = AccountRelation::mk()->where(['unid' => $unid])->findOrEmpty();
-        if ($user->isEmpty() || $relation->isEmpty()) return true;
-        $levelCurr = $relation['level_code'];
+        $relation = AccountRelation::make($unid);
+        $levelCurr = intval($relation->getAttr('level_code'));
         // 初始化等级参数
         $levels = ShopConfigLevel::mk()->where(['status' => 1])->select()->toArray();
         [$levelName, $levelCode, $levelTeams] = [$levels[0]['name'] ?? '普通用户', 0, []];
@@ -143,7 +125,7 @@ class UserUpgrade
         $teamsUsers = $teamsDirect + $teamsIndirect;
         // 动态计算用户等级
         foreach (array_reverse($levels) as $item) {
-            $l1 = empty($item['enter_vip_status']) || $relation['buy_vip_entry'] > 0;
+            $l1 = empty($item['enter_vip_status']) || $relation->getAttr('buy_vip_entry') > 0;
             $l2 = empty($item['teams_users_status']) || $item['teams_users_number'] <= $teamsUsers;
             $l3 = empty($item['order_amount_status']) || $item['order_amount_number'] <= $orderAmount;
             $l4 = empty($item['teams_direct_status']) || $item['teams_direct_number'] <= $teamsDirect;
@@ -162,8 +144,7 @@ class UserUpgrade
         $tmpCode = $query->whereRaw("a.unid={$unid} and a.payment_status=1 and a.status>=4 and b.level_upgrade>-1")->max('b.level_upgrade');
         if ($tmpCode > $levelCode && isset($levels[$tmpCode])) {
             [$levelName, $levelCode] = [$levels[$tmpCode]['name'], $levels[$tmpCode]['number']];
-        }
-        if ($relation['level_code'] >= $levelCode) {
+        } else {
             $orderNo = null;
         }
         // 统计用户订单金额
@@ -183,16 +164,20 @@ class UserUpgrade
         if (!empty($orderNo)) $extra['level_order'] = $orderNo;
         if ($levelCode !== $levelCurr) $extra['level_change_time'] = date('Y-m-d H:i:s');
         // 更新用户扩展数据
+        $user = AccountUser::mk()->findOrEmpty($unid);
         $user->save(['extra' => array_merge($user->getAttr('extra'), $extra)]);
         // 用户用户等级数据
         $relation->save(['level_name' => $levelName, 'level_code' => $levelCode]);
         $levelCurr < $levelCode && Library::$sapp->event->trigger('PluginWemallUpgradeLevel', [
-            'unid'           => $relation['unid'],
+            'unid'           => $unid,
             'order_no'       => $orderNo,
             'level_code_old' => $levelCurr,
             'level_code_new' => $levelCode,
         ]);
-        return !($parent && $relation['puid1'] > 0) || static::upgrade($relation['puid1'], false);
+        if ($parent && empty($relation->getAttr('puid0')) && $relation->getAttr('puid1') > 0) {
+            static::upgrade(intval($relation->getAttr('puid1')));
+        }
+        return $relation;
     }
 
     /**
@@ -208,7 +193,7 @@ class UserUpgrade
     public static function recount(int $unid, bool $syncRelation = false)
     {
         if ($syncRelation) {
-            AccountRelation::initRelation($unid);
+            AccountRelation::make($unid);
             static::upgrade($unid);
         }
         $data = [];

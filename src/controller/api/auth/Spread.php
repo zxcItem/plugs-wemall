@@ -71,7 +71,7 @@ class Spread extends Auth
             'user.spreat'   => "/pages/home/index?from={$this->unid}",
             'user.headimg'  => $account['user']['headimg'] ?? '',
             'user.nickname' => $account['user']['nickname'] ?? '',
-            'user.rolename' => $this->relation['level_name'] ?? '',
+            'user.rolename' => $this->relation->getAttr('level_name'),
         ];
         $items = ShopConfigPoster::items($this->levelCode, $this->type);
         foreach ($items as &$item) {

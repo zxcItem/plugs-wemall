@@ -94,7 +94,7 @@ class Order extends Auth
                     'total_reward_integral' => $gspec['reward_integral'] * $count,
                     // 用户等级
                     'level_code'            => $this->levelCode,
-                    'level_name'            => $this->levelName,
+                    'level_name'            => $this->relation->getAttr('level_name'),
                     'level_upgrade'         => $goods['level_upgrade'],
                     // 是否参与返佣
                     'rebate_type'           => $goods['rebate_type'],

@@ -16,9 +16,17 @@ use think\exception\HttpResponseException;
  */
 abstract class Auth extends AccountAuth
 {
-    protected $relation = [];
+    /**
+     * 用户关系
+     * @var AccountRelation
+     */
+    protected $relation;
+
+    /**
+     * 等级序号
+     * @var integer
+     */
     protected $levelCode;
-    protected $levelName;
 
     /**
      * 控制器初始化
@@ -42,14 +50,8 @@ abstract class Auth extends AccountAuth
      */
     protected function withUserRelation(): Auth
     {
-        $relation = AccountRelation::mk()->where(['unid' => $this->unid])->findOrEmpty();
-        if ($relation->isEmpty()) $relation = AccountRelation::initRelation($this->unid);
-        $this->relation = $relation->toArray();
-        $this->levelCode = intval($relation->getAttr('level_code'));
-        $this->levelName = $relation->getAttr('level_name') ?: '普通用户';
-        if ($relation->getAttr('level_name') !== $this->levelName) {
-            $relation->save(['level_name' => $this->levelName]);
-        }
+        $this->relation = AccountRelation::make($this->unid);
+        $this->levelCode = intval($this->relation->getAttr('level_code'));
         return $this;
     }
 }

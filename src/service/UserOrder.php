@@ -44,9 +44,9 @@ class UserOrder
         // 更新入会资格
         $entry = self::_vipEntry($order['unid']);
         // 尝试绑定代理
-        if (empty($user['puid1']) && ($order['puid1'] > 0 || $user['puid0'] > 0)) {
-            $puid1 = $order['puid1'] > 0 ? $order['puid1'] : $user['puid0'];
-            UserUpgrade::bindAgent($user['id'], $puid1);
+        if (empty($user['puid0']) && $order['puid1'] > 0) {
+            $puid1 = $order['puid1'] > 0 ? $order['puid1'] : $user['puid1'];
+            UserUpgrade::bindAgent($user['id'], intval($puid1));
         }
         // 重置订单推荐
         if ($user->refresh() && $user['puid1'] > 0) {
