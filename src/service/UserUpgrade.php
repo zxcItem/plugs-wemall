@@ -41,7 +41,7 @@ class UserUpgrade
         // 绑定代理数据
         $puid1 = $relation['puid1'] ?? 0; // 上1级代理
         $puid2 = $relation['puid2'] ?? 0; // 上2级代理
-        if (empty($relation['puid0']) && $puid > 0) {
+        if (empty($relation['puids']) && $puid > 0) {
             $relation = self::bindAgent($unid, $puid, 0);
             $puid1 = $relation->getAttr('puid1') ?: 0; // 上1级代理
             $puid2 = $relation->getAttr('puid2') ?: 0; // 上2级代理
@@ -63,7 +63,7 @@ class UserUpgrade
             $relation = AccountRelation::make($unid);
             // 已经绑定代理
             $puid1 = intval($relation->getAttr('puid1'));
-            if ($puid1 > 0 && $relation->getAttr('puid0') > 0) {
+            if ($puid1 > 0 && $relation->getAttr('puids') > 0) {
                 if ($puid1 !== $puid && $mode !== 0) throw new Exception('已绑定代理！');
             }
             // 检查代理用户
@@ -79,7 +79,7 @@ class UserUpgrade
                 $relation->save([
                     'pids'  => $mode > 0 ? 1 : 0,
                     'path'  => $path1,
-                    'puid0' => $mode > 0 ? 1 : 0,
+                    'puids' => $mode > 0 ? 1 : 0,
                     'puid1' => $parent->getAttr('unid'),
                     'puid2' => $parent->getAttr('puid1'),
                     'layer' => substr_count($path1, ',')
@@ -174,7 +174,7 @@ class UserUpgrade
             'level_code_old' => $levelCurr,
             'level_code_new' => $levelCode,
         ]);
-        if ($parent && empty($relation->getAttr('puid0')) && $relation->getAttr('puid1') > 0) {
+        if ($parent && empty($relation->getAttr('puids')) && $relation->getAttr('puid1') > 0) {
             static::upgrade(intval($relation->getAttr('puid1')));
         }
         return $relation;

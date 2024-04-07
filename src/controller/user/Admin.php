@@ -38,7 +38,7 @@ class Admin extends Controller
             $this->title = '用户关系管理';
             $this->upgrades = ShopConfigLevel::items();
         }, function (QueryHelper $query) {
-            $query->with(['user', 'relation0', 'relation1', 'relation2'])->equal('level_code');
+            $query->with(['user', 'agent1', 'agent2', 'user1', 'user2'])->equal('level_code');
             // 用户内容查询
             $user = AccountUser::mQuery()->dateBetween('create_at');
             $user->equal('status')->like('code|phone|username|nickname#user');
