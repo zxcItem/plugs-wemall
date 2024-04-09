@@ -1,36 +1,3 @@
-<style>
-    [data-level-zero] {
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 2px;
-        color: #FFF;
-        display: flex;
-        position: absolute;
-        font-size: 20px;
-        font-weight: bold;
-        align-items: center;
-        border-radius: 3px;
-        letter-spacing: 1px;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        text-shadow: #666 1px 1px 3px;
-    }
-
-    .min-input {
-        width: 50px;
-        border: 1px solid rgba(0, 0, 0, 0.3);
-        font-size: 12px;
-        padding-left: 15px;
-        border-radius: 3px;
-    }
-
-    .card-bgimg .uploadimage {
-        width: 150px;
-        background-size: 100% 100%;
-    }
-</style>
-
 <form action="{:sysuri()}" class="layui-form layui-card" data-auto="true" method="post">
     <div class="layui-card-body padding-left-40">
 
@@ -70,35 +37,36 @@
             </label>
         </div>
 
-        <div class="layui-form-item">
-            <span class="help-label label-required-prev"><b>团队计数</b>Team Count</span>
-            {empty name='vo.upgrade_team'}{assign name='vo.upgrade_team' value='0'}{/empty}
-            <div class="layui-textarea help-checks">
-                {foreach ['不参与团队计数','参与团队计数'] as $k => $v}
-                <label class="think-radio">
-                    {if isset($vo.upgrade_team) and $vo.upgrade_team eq $k}
-                    <input name="upgrade_team" type="radio" value="{$k}" checked lay-ignore> {$v}
-                    {else}
-                    <input name="upgrade_team" type="radio" value="{$k}" lay-ignore> {$v}
-                    {/if}
-                </label>
-                {/foreach}
+        <div class="flex">
+            <div class="layui-form-item flex-1">
+                <span class="help-label label-required-prev"><b>团队计数</b>Team Count</span>
+                {empty name='vo.upgrade_team'}{assign name='vo.upgrade_team' value='1'}{/empty}
+                <div class="layui-textarea help-checks">
+                    {foreach ['不参与团队计数','参与团队计数'] as $k => $v}
+                    <label class="think-radio">
+                        {if isset($vo.upgrade_team) and $vo.upgrade_team eq $k}
+                        <input name="upgrade_team" type="radio" value="{$k}" checked lay-ignore> {$v}
+                        {else}
+                        <input name="upgrade_team" type="radio" value="{$k}" lay-ignore> {$v}
+                        {/if}
+                    </label>
+                    {/foreach}
+                </div>
             </div>
-        </div>
-
-        <div class="layui-form-item">
-            <span class="help-label label-required-prev"><b>升级规则</b>Upgrade Type</span>
-            {empty name='vo.upgrade_type'}{assign name='vo.upgrade_type' value='0'}{/empty}
-            <div class="layui-textarea help-checks">
-                {foreach ['达成任意条件','达成全部条件'] as $k => $v}
-                <label class="think-radio">
-                    {if isset($vo.upgrade_type) and $vo.upgrade_type eq $k}
-                    <input name="upgrade_type" type="radio" value="{$k}" lay-ignore checked> {$v}
-                    {else}
-                    <input name="upgrade_type" type="radio" value="{$k}" lay-ignore> {$v}
-                    {/if}
-                </label>
-                {/foreach}
+            <div class="layui-form-item flex-1 margin-left-15">
+                <span class="help-label label-required-prev"><b>升级规则</b>Upgrade Type</span>
+                {empty name='vo.upgrade_type'}{assign name='vo.upgrade_type' value='1'}{/empty}
+                <div class="layui-textarea help-checks">
+                    {foreach ['达成任意条件','达成全部条件'] as $k => $v}
+                    <label class="think-radio">
+                        {if isset($vo.upgrade_type) and $vo.upgrade_type eq $k}
+                        <input name="upgrade_type" type="radio" value="{$k}" lay-ignore checked> {$v}
+                        {else}
+                        <input name="upgrade_type" type="radio" value="{$k}" lay-ignore> {$v}
+                        {/if}
+                    </label>
+                    {/foreach}
+                </div>
             </div>
         </div>
 
@@ -196,3 +164,37 @@
         }
     });
 </script>
+
+
+<style>
+    [data-level-zero] {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 2px;
+        color: #FFF;
+        display: flex;
+        position: absolute;
+        font-size: 20px;
+        font-weight: bold;
+        align-items: center;
+        border-radius: 3px;
+        letter-spacing: 1px;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        text-shadow: #666 1px 1px 3px;
+    }
+
+    .min-input {
+        width: 50px;
+        border: 1px solid rgba(0, 0, 0, 0.3);
+        font-size: 12px;
+        padding-left: 15px;
+        border-radius: 3px;
+    }
+
+    .card-bgimg .uploadimage {
+        width: 150px;
+        background-size: 100% 100%;
+    }
+</style>
