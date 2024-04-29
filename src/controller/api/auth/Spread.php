@@ -4,6 +4,7 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\api\auth;
 
+use plugin\account\model\AccountUser;
 use plugin\wemall\controller\api\Auth;
 use plugin\shop\model\ShopConfigPoster;
 use plugin\account\model\AccountRelation;
@@ -32,7 +33,11 @@ class Spread extends Auth
     public function get()
     {
         AccountRelation::mQuery(null, function (QueryHelper $query) {
-            $query->with(['user'])->where(['puid1' => $this->unid])->order('id desc');
+            // 用户搜索查询
+            $db = AccountUser::mQuery()->like('phone|nickname#keys')->db();
+            if ($db->getOptions('where')) $query->whereRaw("unid in {$db->field('id')->buildSql()}");
+            // 数据条件查询
+            $query->with(['bindUser'])->where(['puid1' => $this->unid])->order('id desc');
             $this->success('获取数据成功！', $query->page(intval(input('page', 1)), false, false, 10));
         });
     }

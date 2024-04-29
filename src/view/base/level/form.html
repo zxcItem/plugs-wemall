@@ -37,11 +37,11 @@
             </label>
         </div>
 
-        <div class="flex">
-            <div class="layui-form-item flex-1">
+        <div class="layui-form-item flex">
+            <div class="flex-1">
                 <span class="help-label label-required-prev"><b>团队计数</b>Team Count</span>
                 {empty name='vo.upgrade_team'}{assign name='vo.upgrade_team' value='1'}{/empty}
-                <div class="layui-textarea help-checks">
+                <div class="layui-input help-checks">
                     {foreach ['不参与团队计数','参与团队计数'] as $k => $v}
                     <label class="think-radio">
                         {if isset($vo.upgrade_team) and $vo.upgrade_team eq $k}
@@ -53,10 +53,10 @@
                     {/foreach}
                 </div>
             </div>
-            <div class="layui-form-item flex-1 margin-left-15">
+            <div class="flex-1 margin-left-15">
                 <span class="help-label label-required-prev"><b>升级规则</b>Upgrade Type</span>
                 {empty name='vo.upgrade_type'}{assign name='vo.upgrade_type' value='1'}{/empty}
-                <div class="layui-textarea help-checks">
+                <div class="layui-input help-checks">
                     {foreach ['达成任意条件','达成全部条件'] as $k => $v}
                     <label class="think-radio">
                         {if isset($vo.upgrade_type) and $vo.upgrade_type eq $k}
@@ -186,9 +186,12 @@
     }
 
     .min-input {
-        width: 50px;
+        color: #333;
+        width: 80px;
         border: 1px solid rgba(0, 0, 0, 0.3);
+        height: 18px;
         font-size: 12px;
+        line-height: 18px;
         padding-left: 15px;
         border-radius: 3px;
     }

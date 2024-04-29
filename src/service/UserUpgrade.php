@@ -4,15 +4,14 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\account\model\AccountRelation;
 use plugin\account\model\AccountUser;
-use plugin\payment\model\PaymentBalance;
 use plugin\payment\service\BalanceService;
 use plugin\payment\service\IntegralService;
-use plugin\shop\model\ShopOrder;
-use plugin\shop\model\ShopOrderItem;
 use plugin\shop\service\UserAction;
 use plugin\wemall\model\ShopConfigLevel;
+use plugin\shop\model\ShopOrder;
+use plugin\shop\model\ShopOrderItem;
+use plugin\account\model\AccountRelation;
 use think\admin\Exception;
 use think\admin\Library;
 use think\db\exception\DataNotFoundException;
@@ -24,29 +23,32 @@ use think\db\exception\ModelNotFoundException;
  * @class UserUpgrade
  * @package plugin\wemall\service
  */
-class UserUpgrade
+abstract class UserUpgrade
 {
 
     /**
      * 读取用户代理编号
      * @param integer $unid 会员用户
      * @param integer $puid 代理用户
-     * @param array|null $relation
+     * @param AccountRelation|array|null $relation 关联的模型
      * @return array
      * @throws Exception
      */
     public static function withAgent(int $unid, int $puid, $relation = null): array
     {
-        $relation = $relation ?: AccountRelation::make($unid)->toArray();
+        $relation = $relation ?: AccountRelation::sync($unid)->toArray();
         // 绑定代理数据
         $puid1 = $relation['puid1'] ?? 0; // 上1级代理
         $puid2 = $relation['puid2'] ?? 0; // 上2级代理
+        $puid3 = $relation['puid3'] ?? 0; // 上3级代理
         if (empty($relation['puids']) && $puid > 0) {
+            // 创建临时绑定
             $relation = self::bindAgent($unid, $puid, 0);
             $puid1 = $relation->getAttr('puid1') ?: 0; // 上1级代理
             $puid2 = $relation->getAttr('puid2') ?: 0; // 上2级代理
+            $puid3 = $relation->getAttr('puid3') ?: 0; // 上3级代理
         }
-        return ['unid' => $unid, 'puid1' => $puid1, 'puid2' => $puid2];
+        return ['unid' => $unid, 'puid1' => $puid1, 'puid2' => $puid2, 'puid3' => $puid3];
     }
 
     /**
@@ -60,37 +62,25 @@ class UserUpgrade
     public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): AccountRelation
     {
         try {
-            $relation = AccountRelation::make($unid);
-            // 已经绑定代理
+            $relation = AccountRelation::sync($unid);
+            // 已经绑定不允许替换原代理信息
             $puid1 = intval($relation->getAttr('puid1'));
             if ($puid1 > 0 && $relation->getAttr('puids') > 0) {
-                if ($puid1 !== $puid && $mode !== 0) throw new Exception('已绑定代理！');
+                if ($puid1 !== $puid && $mode !== 0) {
+                    throw new Exception('已绑定代理！');
+                }
             }
             // 检查代理用户
             if (empty($puid)) $puid = $puid1;
             if (empty($puid)) throw new Exception('代理不存在！');
             if ($unid === $puid) throw new Exception('不能绑定自己！');
             // 检查上级用户
-            $parent = AccountRelation::make($puid);
-            if (strpos($parent->getAttr('path'), ",{$unid},") !== false) throw new Exception('不能绑定下级');
-            Library::$sapp->db->transaction(static function () use ($relation, $parent, $mode) {
-                // 更新用户代理
-                $path1 = rtrim($parent->getAttr('path') ?: ',', ',') . ",{$parent->getAttr('unid')},";
-                $relation->save([
-                    'pids'  => $mode > 0 ? 1 : 0,
-                    'path'  => $path1,
-                    'puids' => $mode > 0 ? 1 : 0,
-                    'puid1' => $parent->getAttr('unid'),
-                    'puid2' => $parent->getAttr('puid1'),
-                    'layer' => substr_count($path1, ',')
-                ]);
-                // 更新下级代理
-                $path2 = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
-                foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->cursor() as $item) {
-                    $text = arr2str(str2arr("{$path1},{$relation->getAttr('unid')}"));
-                    $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", $text, $item->getAttr('path'))));
-                    $item->save(['path' => $path3, 'puid1' => $attr[0] ?? 0, 'puid2' => $attr[1] ?? 0]);
-                }
+            $parent = AccountRelation::sync($puid);
+            if (strpos($parent->getAttr('path'), ",{$unid},") !== false) {
+                throw new Exception('不能绑定下级！');
+            }
+            Library::$sapp->db->transaction(function () use ($relation, $parent, $mode) {
+                self::forceReplaceParent($relation, $parent, ['puids' => $mode > 0 ? 1 : 0]);
             });
             return static::upgrade($relation->getAttr('unid'));
         } catch (Exception $exception) {
@@ -101,18 +91,49 @@ class UserUpgrade
     }
 
     /**
+     * 更替用户上级关系
+     * @param AccountRelation $relation
+     * @param AccountRelation $parent
+     * @param array $extra 扩展数据
+     * @return AccountRelation
+     */
+    public static function forceReplaceParent(AccountRelation $relation, AccountRelation $parent, array $extra = []): AccountRelation
+    {
+        $path1 = arr2str(str2arr("{$parent->getAttr('path')},{$parent->getAttr('unid')}"));
+        $relation->save(array_merge([
+            'path'  => $path1,
+            'puid1' => $parent->getAttr('unid'),
+            'puid2' => $parent->getAttr('puid1'),
+            'puid3' => $parent->getAttr('puid2'),
+            'layer' => substr_count($path1, ','),
+        ], $extra));
+        /** 更新所有下级代理 @var AccountRelation $item */
+        $path2 = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
+        foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->cursor() as $item) {
+            $text = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
+            $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", $text, $item->getAttr('path'))));
+            $item->save([
+                'puid1' => $attr[0] ?? 0, 'puid2' => $attr[1] ?? 0, 'path' => $path3,
+                'puid3' => $attr[2] ?? 0, 'layer' => substr_count($path3, ',')
+            ]);
+        }
+        return $relation;
+    }
+
+    /**
      * 同步计算用户等级
      * @param integer $unid 指定用户UID
      * @param boolean $parent 同步计算上级
      * @param ?string $orderNo 升级触发订单
      * @return AccountRelation
+     * @throws Exception
      * @throws DataNotFoundException
      * @throws DbException
-     * @throws ModelNotFoundException|Exception
+     * @throws ModelNotFoundException
      */
     public static function upgrade(int $unid, bool $parent = true, ?string $orderNo = null): AccountRelation
     {
-        $relation = AccountRelation::make($unid);
+        $relation = AccountRelation::sync($unid);
         $levelCurr = intval($relation->getAttr('level_code'));
         // 初始化等级参数
         $levels = ShopConfigLevel::mk()->where(['status' => 1])->select()->toArray();
@@ -166,7 +187,7 @@ class UserUpgrade
         // 更新用户扩展数据
         $user = AccountUser::mk()->findOrEmpty($unid);
         $user->save(['extra' => array_merge($user->getAttr('extra'), $extra)]);
-        // 用户用户等级数据
+        // 用户等级数据
         $relation->save(['level_name' => $levelName, 'level_code' => $levelCode]);
         $levelCurr < $levelCode && Library::$sapp->event->trigger('PluginWemallUpgradeLevel', [
             'unid'           => $unid,
@@ -193,7 +214,7 @@ class UserUpgrade
     public static function recount(int $unid, bool $syncRelation = false)
     {
         if ($syncRelation) {
-            AccountRelation::make($unid);
+            AccountRelation::sync($unid);
             static::upgrade($unid);
         }
         $data = [];

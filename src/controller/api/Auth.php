@@ -50,7 +50,7 @@ abstract class Auth extends AccountAuth
      */
     protected function withUserRelation(): Auth
     {
-        $this->relation = AccountRelation::make($this->unid);
+        $this->relation = AccountRelation::sync($this->unid);
         $this->levelCode = intval($this->relation->getAttr('level_code'));
         return $this;
     }

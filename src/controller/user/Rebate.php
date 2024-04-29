@@ -66,33 +66,4 @@ class Rebate extends Controller
     {
         foreach ($data as &$vo) $vo['status'] = $vo['status'] ? '已生效' : '未生效';
     }
-
-    /**
-     * 用户返佣配置
-     * @auth true
-     * @throws Exception
-     */
-    public function config()
-    {
-        $this->skey = 'plugin.shop.rebate.rule';
-        $this->title = '用户返佣配置';
-        if ($this->request->isGet()) {
-            $this->data = sysdata($this->skey);
-            $this->levels = ShopConfigLevel::items();
-            $this->fetch();
-        } else {
-            sysdata($this->skey, $this->request->post());
-            $this->success('奖励修改成功', 'javascript:history.back()');
-        }
-    }
-
-    /**
-     * 刷新订单返佣
-     * @auth true
-     * @return void
-     */
-//    public function sync()
-//    {
-//        $this->_queue('刷新用户返佣数据', 'xdata:mall:rebate');
-//    }
 }

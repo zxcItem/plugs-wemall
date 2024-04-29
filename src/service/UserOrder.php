@@ -143,7 +143,7 @@ class UserOrder
     /**
      * 验证订单取消余额
      * @param string $orderNo 订单单号
-     * @param boolean $syncRebate 更新返利
+     * @param boolean $syncRebate 更新返佣
      * @return string
      * @throws Exception
      * @throws DataNotFoundException

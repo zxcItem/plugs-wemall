@@ -6,6 +6,7 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\user;
 
 use plugin\account\model\AccountUser;
+use plugin\account\service\Account;
 use plugin\wemall\service\UserUpgrade;
 use plugin\wemall\model\ShopConfigLevel;
 use plugin\account\model\AccountRelation;
@@ -15,6 +16,7 @@ use think\admin\helper\QueryHelper;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;
 use think\db\exception\ModelNotFoundException;
+use think\exception\HttpResponseException;
 
 /**
  * 用户关系管理
@@ -38,9 +40,13 @@ class Admin extends Controller
             $this->title = '用户关系管理';
             $this->upgrades = ShopConfigLevel::items();
         }, function (QueryHelper $query) {
+            if (!empty($this->get['unid'])) {
+                $query->where('unid', '<>', $this->get['unid']);
+                $query->whereNotLike("path", "%,{$this->get['unid']},%");
+            }
             $query->with(['user', 'agent1', 'agent2', 'user1', 'user2'])->equal('level_code');
             // 用户内容查询
-            $user = AccountUser::mQuery()->dateBetween('create_at');
+            $user = AccountUser::mQuery()->dateBetween('create_time');
             $user->equal('status')->like('code|phone|username|nickname#user');
             $user->where(['status' => intval($this->type === 'index'), 'deleted' => 0]);
             $query->whereRaw("unid in {$user->db()->field('id')->buildSql()}");
@@ -55,6 +61,36 @@ class Admin extends Controller
     public function sync()
     {
         $this->_queue('刷新会员用户数据', 'plugin:mall:users');
+    }
+
+    /**
+     * 编辑会员资料
+     * @auth true
+     * @return void
+     */
+    public function edit()
+    {
+        AccountRelation::mQuery()->with('user')->mForm('form', 'unid');
+    }
+
+    /**
+     * 表单数据处理
+     * @param array $data
+     * @return void
+     * @throws Exception
+     */
+    protected function _edit_form_filter(array $data)
+    {
+        if ($this->request->isPost()) {
+            $account = Account::mk(Account::WEB, ['unid' => $data['unid']]);
+            // 更新当前用户代理线，同时更新账号的 user 数据
+            $account->bind(['id' => $data['unid']], $data['user'] ?? []);
+            // 修改用户登录密码
+            if (!empty($data['user']['password'])) {
+                $account->pwdModify($data['user']['password']);
+                unset($data['user']['password']);
+            }
+        }
     }
 
     /**
@@ -88,17 +124,24 @@ class Admin extends Controller
      */
     public function parent()
     {
-        if($this->request->isGet()){
+        if ($this->request->isGet()) {
             $this->index();
-        }else{
-            try {
-                $data = $this->_vali(['pid.require' => '待绑定代理不能为空！', 'unid.require' => '待操作用户不能为空！']);
-                UserUpgrade::bindAgent(intval($data['unid']), intval($data['pid']), 2);
-                sysoplog('前端用户管理', "修改用户[{$data['unid']}]的代理为用户[{$data['pid']}]");
-                $this->success('上级修改成功！');
-            } catch (Exception $exception) {
-                $this->error($exception->getMessage());
+        } else try {
+            $data = $this->_vali(['unid.require' => '用户编号为空！', 'puid.require' => '上级编号为空！']);
+            $parent = AccountRelation::mQuery()->where(['unid' => $data['puid']])->findOrEmpty();
+            if ($parent->isEmpty()) $this->error('上级用户不存在！');
+            $relation = AccountRelation::sync(intval($data['unid']));
+            if (stripos($parent->getAttr('path'), ",{$data['unid']},") !== false) {
+                $this->error('无法设置下级为自己的上级！');
             }
+            $this->app->db->transaction(function () use ($relation, $parent) {
+                UserUpgrade::forceReplaceParent($relation, $parent);
+            });
+            $this->success('更新上级成功！');
+        } catch (HttpResponseException $exception) {
+            throw $exception;
+        } catch (\Exception $e) {
+            $this->error($e->getMessage());
         }
     }
 }

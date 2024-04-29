@@ -1,32 +1,39 @@
-{block name="content"}
 <div class="think-box-shadow relative shadow-none">
     {include file='user/admin/parent_search'}
     <table id="UserTableSelect" data-line="3" data-url="{:request()->url()}" data-target-search="form.form-search"></table>
 </div>
 
-{/block}
-
-{block name='script'}
 <script>
     $(function () {
         $('#UserTableSelect').layTable({
             even: true, height: 'full',
             sort: {field: 'id', type: 'desc'},
-            cellExpandedMode: 'tips',
             cols: [[
                 {field: 'id', hide: true},
-                {field: 'headimg', title: '头 像', width: 95, align: 'center', templet: '<div>{{-showTableImage(d.user.headimg,true,"md")}}</div>'},
                 {
-                    title: '用户账号', templet: function (d) {
-                        let tpls = [];
-                        tpls.push('关联手机：<b class="color-blue">{{d.user.phone}}</b>')
-                        tpls.push('用户编号：<b class="color-blue">{{d.user.code}}</b>')
-                        return laytpl(tpls.join('<br>')).render(d);
+                    title: '用户头像', width: 90, align: 'center', templet: function (d) {
+                        if (!d.user || !d.user.headimg) return '';
+                        return laytpl('<div>{{-showTableImage(d.user.headimg,false,"md")}}</div>').render(d)
+                    }
+                },
+                {
+                    title: '用户账号', minWidth: 180, templet: function (d) {
+                        let tpls = [], middle;
+                        if (d.puids > 0) {
+                            middle = '<div class="layui-badge layui-badge-middle layui-bg-green flex-center" style="line-height:14px;padding:3px 4px">永久绑定</div>';
+                        } else {
+                            middle = '<div class="layui-badge layui-badge-middle layui-bg-red flex-center" style="line-height:14px;padding:3px 4px">临时绑定</div>';
+                        }
+                        tpls.push('所属层级：第 <b>{{d.layer}}</b> 层');
+                        tpls.push('用户等级：<b class="color-blue">VIP{{d.level_code}}</b> {{d.level_name||""}}')
+                        tpls.push('账号手机：<b class="color-blue">{{d.user.phone||d.user.email}}</b>')
+                        return laytpl("<div class='flex'><div>" + middle + "</div><div>" + tpls.join('<br>') + "</div></div>").render(d);
                     }
                 },
                 {
                     title: '用户姓名', templet: function (d) {
                         let tpls = [];
+                        tpls.push('用户姓名：{{d.user.username||"-"}}')
                         tpls.push('用户昵称：{{d.user.nickname||"-"}}')
                         tpls.push('注册时间：{{d.user.create_time||"-"}}')
                         return laytpl(tpls.join('<br>')).render(d);
@@ -34,9 +41,19 @@
                 },
                 {toolbar: '#SelectUserToolbar', title: '操作面板', align: 'center', width: 100, fixed: 'right'}
             ]]
-        }).trigger('tool', function (item) {
-            $.form.load('{:sysuri()}', {unid: this.dataset.parentUuid, pid: this.dataset.parentPid}, 'post', function (ret) {
-                if (ret.code > 0) return $.msg.closeThisModal(this);
+        }).trigger('tool', function (ev) {
+            let that = this, data = {
+                puid: ev.data.unid, unid: parseInt("{$get.unid|default=0}"),
+            };
+            $.form.load('{:url("parent")}', data, 'post', function (ret) {
+                if (ret.code > 0) {
+                    $.msg.success(ret.info, 3, function () {
+                        $.msg.closeThisModal(that), $.form.reload();
+                    })
+                } else {
+                    $.msg.error(ret.info)
+                }
+                return false;
             });
         });
     });
@@ -44,11 +61,10 @@
 
 <!-- 操作工具条模板 -->
 <script type="text/html" id="SelectUserToolbar">
-    <div class="padding-top-15"></div>
+    <div class="padding-top-10"></div>
     {{# if (typeof checkItemValue !== 'function' || checkItemValue(d.id)){ }}
-    <a class="layui-btn layui-btn-sm" data-parent-uuid="{$get.unid|default=''}" data-parent-pid="{{d.unid}}" lay-event="select">选 择</a>
+    <a class="layui-btn layui-btn-sm" lay-event="select">选 择</a>
     {{# }else{ }}
     <a class="layui-btn layui-btn-sm layui-btn-disabled">已 选</a>
     {{# } }}
 </script>
-{/block}

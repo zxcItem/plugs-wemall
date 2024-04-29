@@ -15,9 +15,6 @@
 <a data-confirm="确定要恢复这些账号吗？" data-table-id="UserTable" data-action="{:url('state')}" data-rule="id#{unid};status#1" class='layui-btn layui-btn-sm layui-btn-primary'>批量恢复</a>
 <!--{/if}-->
 {/if}
-<!--{if auth('remove')}-->
-<a data-confirm="确定永久删除这些账号吗？" data-table-id="UserTable" data-action='{:url("remove")}' data-rule="id#{unid}" class='layui-btn layui-btn-sm layui-btn-primary'>批量删除</a>
-<!--{/if}-->
 {/block}
 
 {block name="content"}
@@ -38,7 +35,7 @@
 
 <script>
     $(function () {
-        $('#UserTable').layTable({
+        let $table = $('#UserTable').layTable({
             even: true, height: 'full', sort: {field: 'id', type: 'desc'}, cellExpandedMode: 'tips',
             cols: [[
                 {field: 'id', hide: true}, {checkbox: true, fixed: true},
@@ -109,11 +106,8 @@
         layui.form.on('switch(StatusSwitch)', function (obj) {
             let data = {id: obj.value, status: obj.elem.checked > 0 ? 1 : 0};
             $.form.load("{:url('state')}", data, 'post', function (ret) {
-                if (ret.code < 1) $.msg.error(ret.info, 3, function () {
-                    $('#UserTable').trigger('reload');
-                }); else {
-                    $('#UserTable').trigger('reload')
-                }
+                let fn = () => $table.trigger('reload');
+                ret.code > 0 ? fn() : $.msg.error(ret.info, 3, fn);
                 return false;
             }, false);
         });
@@ -138,11 +132,11 @@
 
 <script type="text/html" id="toolbar">
     <div class="padding-top-10"></div>
-    <!--{if auth('remove')}-->
-    <a class="layui-btn layui-btn-sm layui-btn-danger" data-confirm="确定要永久删除此账号吗？" data-action="{:url('remove')}" data-value="id#{{d.unid}}">删 除</a>
+    <!--{if auth('edit')}-->
+    <a class="layui-btn layui-btn-sm" data-modal="{:url('edit')}?unid={{d.unid}}" data-title="编辑用户">编 辑</a>
     <!--{/if}-->
     <!--{if auth('parent')}-->
-    <a class="layui-btn layui-btn-sm" data-modal="{:url('parent')}?unid={{d.unid}}" data-value="unid#{{d.unid}}" data-title="设置上级代理">上 级</a>
+    <a class="layui-btn layui-btn-sm" data-modal="{:url('parent')}" data-value="unid#{{d.unid}}" data-title="设置上级代理(不包含自己及下级)">上 级</a>
     <!--{/if}-->
 </script>
 {/block}

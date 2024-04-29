@@ -34,7 +34,7 @@ class Level extends Controller
         ShopConfigLevel::mQuery()->layTable(function () {
             $this->title = '用户等级管理';
         }, static function (QueryHelper $query) {
-            $query->like('name')->equal('status')->dateBetween('create_at');
+            $query->like('name')->equal('status')->dateBetween('create_time');
         });
     }
 

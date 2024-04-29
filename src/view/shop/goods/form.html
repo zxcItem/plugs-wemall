@@ -13,31 +13,36 @@
             <div class="flex flex-wrap">
                 <!--{if isset($upgrades) and count($upgrades)>1}-->
                 <fieldset class="layui-bg-gray notselect">
-                    <legend><span class="layui-badge think-bg-violet">不是礼包配置</span></legend>
-                    <select class="layui-select" name="level_upgrade">
-                        {foreach $upgrades as $upgrade}{if isset($vo.level_upgrade) and $vo.level_upgrade eq $upgrade.number}
-                        <option value="{$upgrade.number|default=0}" selected>
-                            [ {$upgrade.prefix|default='0'} ] {if $upgrade.number eq 0}入会礼包，不升级{elseif $upgrade.number>0}升级礼包，升级到【{$upgrade.name|default=''}】{else} {$upgrade.name|default=''} {/if}
-                        </option>
-                        {else}
-                        <option value="{$upgrade.number|default=0}">
-                            [ {$upgrade.prefix|default='0'} ] {if $upgrade.number eq 0}入会礼包，不升级{elseif $upgrade.number>0}升级礼包，升级到【{$upgrade.name|default=''}】{else} {$upgrade.name|default=''} {/if}
-                        </option>
-                        {/if}{/foreach}
-                    </select>
-                    <span class="help-block">购买商品后可直接升级到该等级！</span>
+                    <legend><span class="layui-badge think-bg-violet">授予会员权限</span></legend>
+                    <div class="font-code">
+                        <select class="layui-select" name="level_upgrade">
+                            {foreach $upgrades as $upgrade}
+                            {if isset($vo.level_upgrade) and $vo.level_upgrade eq $upgrade.number}
+                            <option value="{$upgrade.number|default=0}" selected>
+                                [ {$upgrade.prefix|default='0'} ] {if $upgrade.number eq 0} 入会礼包，不升级 {elseif $upgrade.number>0} 升级礼包，升级到【{$upgrade.name|default=''}】{else} {$upgrade.name|default=''} {/if}
+                            </option>
+                            {else}
+                            <option value="{$upgrade.number|default=0}">
+                                [ {$upgrade.prefix|default='0'} ] {if $upgrade.number eq 0} 入会礼包，不升级 {elseif $upgrade.number>0} 升级礼包，升级到【{$upgrade.name|default=''}】{else} {$upgrade.name|default=''} {/if}
+                            </option>
+                            {/if}{/foreach}
+                        </select>
+                    </div>
+                    <span class="help-block">购买商品后可直接升级到该等级。</span>
                 </fieldset>
                 <fieldset class="layui-bg-gray notselect">
                     <legend><span class="layui-badge think-bg-violet">限制购买等级</span></legend>
-                    <select class="layui-select" name="limit_lowvip">
-                        <option value="0">[ - ] 不限等级</option>
-                        {foreach $upgrades as $upgrade}{if $upgrade.number>0}{if isset($vo.limit_lowvip) and $vo.limit_lowvip eq $upgrade.number}
-                        <option selected value="{$upgrade.number|default=0}">[ {$upgrade.number|default=0} ] 限制【{$upgrade.name|default=''}】及以上可购买</option>
-                        {else}
-                        <option value="{$upgrade.number|default=0}">[ {$upgrade.number|default=0} ] 限制【{$upgrade.name|default=''}】及以上可购买</option>
-                        {/if}{/if}{/foreach}
-                    </select>
-                    <span class="help-block">限制低于该等级的用户不能购买！</span>
+                    <div class="font-code">
+                        <select class="layui-select" name="limit_lowvip">
+                            <option value="0">[ - ] 不限等级</option>
+                            {foreach $upgrades as $upgrade}{if $upgrade.number>0}{if isset($vo.limit_lowvip) and $vo.limit_lowvip eq $upgrade.number}
+                            <option value="{$upgrade.number|default=0}" selected>[ {$upgrade.number|default=0} ] 需【{$upgrade.name|default=''}】及以上可购买</option>
+                            {else}
+                            <option value="{$upgrade.number|default=0}">[ {$upgrade.number|default=0} ]【{$upgrade.name|default=''}】及以上可购买</option>
+                            {/if}{/if}{/foreach}
+                        </select>
+                    </div>
+                    <span class="help-block">限制低于该等级的用户不能购买。</span>
                 </fieldset>
                 <!--{else}-->
                 <input type="hidden" name="limit_lowvip" value="0">
@@ -46,8 +51,8 @@
                 <fieldset class="layui-bg-gray">
                     <legend><span class="layui-badge think-bg-violet">限制购买数量</span></legend>
                     <label>
-                        <input class="layui-input" type="number" min="0" data-blur-number="0" name="limit_maxnum" placeholder="请输入商品限购数量" value="{$vo.limit_maxnum|default=0}">
-                        <span class="help-block">限制每人购买数量，值为 0 时不限制！</span>
+                        <input class="layui-input" type="number" data-blur-number="0" lay-affix="number" min="0" name="limit_maxnum" placeholder="请输入商品限购数量" value="{$vo.limit_maxnum|default=0}">
+                        <span class="help-block">限制每人购买数量，为 0 时表示不限制。</span>
                     </label>
                 </fieldset>
                 <!--{if isset($discounts)}-->
@@ -76,7 +81,7 @@
                         <input name="rebate_type" title="{$v}" type="radio" value="{$k}">
                         {/if}{/foreach}
                     </div>
-                    <div class="help-block nowrap">代理获得该商品线上支付部分的返佣比例！</div>
+                    <div class="help-block nowrap">分佣计算时会基于线上支付金额进行计算。</div>
                 </fieldset>
             </div>
         </div>
