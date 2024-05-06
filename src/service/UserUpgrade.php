@@ -135,20 +135,23 @@ abstract class UserUpgrade
     {
         $relation = AccountRelation::sync($unid);
         $levelCurr = intval($relation->getAttr('level_code'));
-        // 初始化等级参数
+        // 筛选用户等级
         $levels = ShopConfigLevel::mk()->where(['status' => 1])->select()->toArray();
         [$levelName, $levelCode, $levelTeams] = [$levels[0]['name'] ?? '普通用户', 0, []];
         // 统计用户数据
         foreach ($levels as $level => $vo) if ($vo['upgrade_team'] === 1) $levelTeams[] = $level;
+        // 统计团队数据
+        $model = AccountRelation::mk()->where(['level_code' => $levelTeams]);
+        $teamsTotal = (clone $model)->whereLike('path', "{$relation->getAttr('path')}%")->count();
+        $teamsDirect = (clone $model)->where(['puid1' => $unid])->count();
+        $teamsIndirect = (clone $model)->where(['puid2' => $unid])->count();
+        // 统计订单金额
         $orderAmount = ShopOrder::mk()->where("unid={$unid} and status>=4")->sum('amount_total');
-        $teamsDirect = AccountRelation::mk()->where(['puid1' => $unid])->whereIn('level_code', $levelTeams)->count();
-        $teamsIndirect = AccountRelation::mk()->where(['puid2' => $unid])->whereIn('level_code', $levelTeams)->count();
-        $teamsUsers = $teamsDirect + $teamsIndirect;
         // 动态计算用户等级
         foreach (array_reverse($levels) as $item) {
             $l1 = empty($item['enter_vip_status']) || $relation->getAttr('buy_vip_entry') > 0;
-            $l2 = empty($item['teams_users_status']) || $item['teams_users_number'] <= $teamsUsers;
-            $l3 = empty($item['order_amount_status']) || $item['order_amount_number'] <= $orderAmount;
+            $l2 = empty($item['order_amount_status']) || $item['order_amount_number'] <= $orderAmount;
+            $l3 = empty($item['teams_users_status']) || $item['teams_users_number'] <= $teamsTotal;
             $l4 = empty($item['teams_direct_status']) || $item['teams_direct_number'] <= $teamsDirect;
             $l5 = empty($item['teams_indirect_status']) || $item['teams_indirect_number'] <= $teamsIndirect;
             if (
@@ -168,19 +171,13 @@ abstract class UserUpgrade
         } else {
             $orderNo = null;
         }
-        // 统计用户订单金额
-        $orderAmountTotal = ShopOrder::mk()->whereRaw("unid={$unid} and status>=4")->sum('amount_goods');
-        $teamsAmountDirect = ShopOrder::mk()->whereRaw("puid1={$unid} and status>=4")->sum('amount_goods');
-        $teamsAmountIndirect = ShopOrder::mk()->whereRaw("puid2={$unid} and status>=4")->sum('amount_goods');
+
         // 收集用户团队数据
         $extra = [
-            'teams_users_total'     => $teamsUsers,
-            'teams_users_direct'    => $teamsDirect,
-            'teams_users_indirect'  => $teamsIndirect,
-            'teams_amount_total'    => $teamsAmountDirect + $teamsAmountIndirect,
-            'teams_amount_direct'   => $teamsAmountDirect,
-            'teams_amount_indirect' => $teamsAmountIndirect,
-            'order_amount_total'    => $orderAmountTotal,
+            'teams_users_total'    => $teamsTotal,
+            'teams_users_direct'   => $teamsDirect,
+            'teams_users_indirect' => $teamsIndirect,
+            'order_amount_total'   => $orderAmount,
         ];
         if (!empty($orderNo)) $extra['level_order'] = $orderNo;
         if ($levelCode !== $levelCurr) $extra['level_change_time'] = date('Y-m-d H:i:s');

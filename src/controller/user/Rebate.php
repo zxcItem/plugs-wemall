@@ -7,7 +7,7 @@ namespace plugin\wemall\controller\user;
 
 use plugin\account\model\AccountUser;
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopUserRebate;
+use plugin\wemall\model\ShopRebate;
 use plugin\wemall\service\UserRebate;
 use think\admin\Controller;
 use think\admin\Exception;
@@ -34,7 +34,7 @@ class Rebate extends Controller
      */
     public function index()
     {
-        ShopUserRebate::mQuery()->layTable(function () {
+        ShopRebate::mQuery()->layTable(function () {
             $this->title = '用户返佣管理';
             $this->rebate = UserRebate::recount(0);
         }, static function (QueryHelper $query) {

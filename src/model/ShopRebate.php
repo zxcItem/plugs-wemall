@@ -10,10 +10,10 @@ use think\model\relation\HasOne;
 
 /**
  * 用户返佣模型
- * @class ShopUserRebate
+ * @class ShopRebate
  * @package plugin\wemall\model
  */
-class ShopUserRebate extends Abs
+class ShopRebate extends Abs
 {
     /**
      * 关联当前用户

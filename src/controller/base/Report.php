@@ -8,7 +8,7 @@ use plugin\payment\model\PaymentBalance;
 use plugin\wemall\model\ShopConfigLevel;
 use plugin\wemall\model\ShopGoods;
 use plugin\shop\model\ShopOrder;
-use plugin\wemall\model\ShopUserRebate;
+use plugin\wemall\model\ShopRebate;
 use plugin\account\model\AccountRelation;
 use think\admin\Controller;
 use think\db\exception\DbException;
@@ -44,7 +44,7 @@ class Report extends Controller
             $model = ShopOrder::mk()->field($field + ['sum(amount_total)' => 'amount']);
             $orders = $model->whereRaw('status>=4')->whereTime('create_time', '-10 days')->group('mday')->select()->column(null, 'mday');
             // 统计返佣数据
-            $model = ShopUserRebate::mk()->field($field + ['sum(amount)' => 'amount']);
+            $model = ShopRebate::mk()->field($field + ['sum(amount)' => 'amount']);
             $rebates = $model->whereTime('create_time', '-10 days')->group('mday')->select()->column(null, 'mday');
             // 统计余额数据
             $model = PaymentBalance::mk()->field($field + ['sum(case when amount>0 then amount else 0 end)' => 'amount1', 'sum(case when amount<0 then amount else 0 end)' => 'amount2']);

@@ -81,6 +81,7 @@ class Service extends Plugin
                 'subs' => [
                     ['name' => '用户等级管理', 'icon' => 'layui-icon layui-icon-senior', 'node' => "{$code}/base.level/index"],
                     ['name' => '用户折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
+                    ['name' => '商城优惠券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/base.coupon/index"],
                 ],
             ]
         ];

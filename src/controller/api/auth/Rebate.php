@@ -7,7 +7,7 @@ namespace plugin\wemall\controller\api\auth;
 
 use plugin\wemall\controller\api\Auth;
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopUserRebate;
+use plugin\wemall\model\ShopRebate;
 use plugin\wemall\service\UserRebate;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;
@@ -30,11 +30,11 @@ class Rebate extends Auth
     {
         $date = trim(input('date', date('Y-m')), '-');
         [$map, $year] = [['unid' => $this->unid], substr($date, 0, 4)];
-        $query = ShopUserRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%");
+        $query = ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%");
         $this->success('获取返佣统计', array_merge($query->order('id desc')->page(true, false, false, 10), [
             'total' => [
-                '年度' => ShopUserRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$year}%")->db()->sum('amount'),
-                '月度' => ShopUserRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%")->db()->sum('amount'),
+                '年度' => ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$year}%")->db()->sum('amount'),
+                '月度' => ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%")->db()->sum('amount'),
             ],
         ]));
     }
@@ -45,7 +45,7 @@ class Rebate extends Auth
     public function prize()
     {
         $map = ['unid' => $this->unid,'deleted' => 0,'status'=>1];
-        $prizes = ShopUserRebate::mk()->where($map)->group('type')->column('sum(amount) as total_amount,type');
+        $prizes = ShopRebate::mk()->where($map)->group('type')->column('sum(amount) as total_amount,type');
         foreach ($prizes as &$prize) $prize['name'] = UserRebate::prizes[$prize['type']];
         $this->success('获取我的奖励', $prizes);
     }

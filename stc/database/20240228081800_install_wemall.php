@@ -32,9 +32,10 @@ class InstallWemall extends Migrator
     {
         $this->_create_insertMenu();
         $this->_create_shop_user_rebate();
-        $this->_create_shop_user_rebate_config();
+        $this->_create_shop_config_rebate();
         $this->_create_shop_config_discount();
         $this->_create_shop_config_level();
+        $this->_create_shop_config_coupon();
     }
 
     /**
@@ -89,15 +90,15 @@ class InstallWemall extends Migrator
 
     /**
      * 创建数据对象
-     * @class ShopUserRebateConfig
-     * @table shop_user_rebate_config
+     * @class ShopConfigRebate
+     * @table shop_config_rebate
      * @return void
      */
-    private function _create_shop_user_rebate_config()
+    private function _create_shop_config_rebate()
     {
 
         // 当前数据表
-        $table = 'shop_user_rebate_config';
+        $table = 'shop_config_rebate';
 
         // 存在则跳过
         if ($this->hasTable($table)) return;
@@ -197,7 +198,7 @@ class InstallWemall extends Migrator
 
     /**
      * 创建数据对象
-     * @class ShopUserRebate
+     * @class ShopRebate
      * @table shop_user_rebate
      * @return void
      */
@@ -235,6 +236,49 @@ class InstallWemall extends Migrator
             ->addIndex('unid', ['name' => 'idx_shop_user_rebate_unid'])
             ->addIndex('deleted', ['name' => 'idx_shop_user_rebate_deleted'])
             ->addIndex('create_time', ['name' => 'idx_shop_user_rebate_create_time'])
+            ->create();
+
+        // 修改主键长度
+        $this->table($table)->changeColumn('id', 'integer', ['limit' => 11, 'identity' => true]);
+    }
+
+    /**
+     * 创建数据对象
+     * @class ShopConfigCoupon
+     * @table shop_config_coupon
+     * @return void
+     */
+    private function _create_shop_config_coupon() {
+
+        // 当前数据表
+        $table = 'shop_config_coupon';
+
+        // 存在则跳过
+        if ($this->hasTable($table)) return;
+
+        // 创建数据表
+        $this->table($table, [
+            'engine' => 'InnoDB', 'collation' => 'utf8mb4_general_ci', 'comment' => '商城-配置-优惠券',
+        ])
+            ->addColumn('name','string',['limit' => 200, 'default' => '', 'null' => true, 'comment' => '优惠券名称'])
+            ->addColumn('cover','string',['limit' => 500, 'default' => '', 'null' => true, 'comment' => '优惠券图标'])
+            ->addColumn('content','text',['default' => NULL, 'null' => true, 'comment' => '优惠券描述'])
+            ->addColumn('remark','string',['limit' => 500, 'default' => '', 'null' => true, 'comment' => '优惠券备注'])
+            ->addColumn('amount','decimal',['precision' => 20, 'scale' => 2, 'default' => '0.00', 'null' => true, 'comment' => '抵扣金额'])
+            ->addColumn('amount_limit','decimal',['precision' => 20, 'scale' => 2, 'default' => '0.00', 'null' => true, 'comment' => '金额门槛(0不限制)'])
+            ->addColumn('expire_days','biginteger',['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '有效值天数'])
+            ->addColumn('times_limit','biginteger',['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '限领数量(0不限制)'])
+            ->addColumn('stock','biginteger',['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '库存数量'])
+            ->addColumn('sales','biginteger',['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '发放数量'])
+            ->addColumn('sort','biginteger',['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '排序权重'])
+            ->addColumn('status','integer',['limit' => 1, 'default' => 1, 'null' => true, 'comment' => '方案状态(0禁用,1使用)'])
+            ->addColumn('deleted','integer',['limit' => 1, 'default' => 0, 'null' => true, 'comment' => '删除状态(1已删,0未删)'])
+            ->addColumn('create_time','datetime',['default' => NULL, 'null' => true, 'comment' => '创建时间'])
+            ->addColumn('update_time','datetime',['default' => NULL, 'null' => true, 'comment' => '更新时间'])
+            ->addIndex('sort', ['name' => 'ibfe2b6128_sort'])
+            ->addIndex('status', ['name' => 'ibfe2b6128_status'])
+            ->addIndex('deleted', ['name' => 'ibfe2b6128_deleted'])
+            ->addIndex('create_time', ['name' => 'ibfe2b6128_create_time'])
             ->create();
 
         // 修改主键长度

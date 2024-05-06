@@ -8,8 +8,8 @@ use plugin\account\model\AccountUser;
 use plugin\wemall\model\ShopConfigDiscount;
 use plugin\wemall\model\ShopConfigLevel;
 use plugin\shop\model\ShopOrder;
-use plugin\wemall\model\ShopUserRebate;
-use plugin\wemall\model\ShopUserRebateConfig;
+use plugin\wemall\model\ShopRebate;
+use plugin\wemall\model\ShopConfigRebate;
 use plugin\account\model\AccountRelation;
 use plugin\payment\model\PaymentTransfer;
 use think\admin\Exception;
@@ -96,18 +96,19 @@ abstract class UserRebate
 
     /**
      * 执行订单返佣处理
-     * @param string $orderNo
+     * @param ShopOrder|string $order
      * @throws Exception
      * @throws DataNotFoundException
      * @throws DbException
      * @throws ModelNotFoundException
      */
-    public static function create(string $orderNo)
+    public static function create($order)
     {
         // 获取订单数据
-        $map = ['order_no' => $orderNo, 'payment_status' => 1];
-        self::$order = ShopOrder::mk()->where($map)->findOrEmpty()->toArray();
-        if (empty(self::$order)) throw new Exception('订单不存在');
+        self::$order = UserOrder::widthOrder($order)->toArray();
+        if (empty(self::$order) || empty(self::$order['payment_status'])) {
+            throw new Exception('订单不存在');
+        }
         if (self::$order['amount_total'] <= 0) throw new Exception('订单金额为零');
         if (self::$order['rebate_amount'] <= 0) throw new Exception('订单返佣为零');
 
@@ -140,7 +141,7 @@ abstract class UserRebate
 
         // 批量查询规则并发放奖励
         $where = ['status' => 1, 'deleted' => 0];
-        ShopUserRebateConfig::mk()->where($where)->select()->map(function (ShopUserRebateConfig $item) use ($orderNo) {
+        ShopConfigRebate::mk()->where($where)->select()->map(function (ShopConfigRebate $item) {
             $cfg = $item->toArray();
             // 返佣结算时间
             self::$status = empty($cfg['stype']) ? 1 : 0;
@@ -154,7 +155,7 @@ abstract class UserRebate
             if ($cfg['p2_level'] > -1 && (empty(self::$rela2) || self::$rela2['level_code'] !== $cfg['p2_level'])) return;
             if ($cfg['p3_level'] > -1 && (empty(self::$rela3) || self::$rela3['level_code'] !== $cfg['p3_level'])) return;
             // 调用对应接口发放奖励
-            if (method_exists($this, $method = "_{$cfg['type']}")) {
+            if (method_exists(self::class, $method = "_{$cfg['type']}")) {
                 Library::$sapp->log->notice("订单 " . self::$order['oroder_no'] . " 开始发放 {$cfg['code']}#[{$cfg['name']}] 奖励");
                 foreach ([self::$rela0, self::$rela1, self::$rela2, self::$rela3] as $k => $v) if ($v) self::$method($cfg, $v, $k);
                 Library::$sapp->log->notice("订单 " . self::$order['oroder_no'] . " 完成发放 {$cfg['code']}#[{$cfg['name']}] 奖励");
@@ -164,18 +165,19 @@ abstract class UserRebate
 
     /**
      * 确认收货订单返佣
-     * @param string $orderNo
+     * @param ShopOrder|string $order
      * @return boolean
      * @throws Exception
      */
-    public static function confirm(string $orderNo): bool
+    public static function confirm(string $order): bool
     {
-        $map = [['status', '>=', 4], ['order_no', '=', $orderNo]];
-        $order = ShopOrder::mk()->where($map)->findOrEmpty();
-        if ($order->isEmpty()) throw new Exception('订单状态异常！');
-        /** @var ShopUserRebate $item */
-        $map = [['status', '=', 0], ['deleted', '=', 0], ['order_no', 'like', "{$orderNo}%"]];
-        foreach (ShopUserRebate::mk()->where($map)->cursor() as $item) {
+        $order = UserOrder::widthOrder($order);
+        if ($order->isEmpty() || $order->getAttr('status') < 6) {
+            throw new Exception('订单状态异常！');
+        }
+        /** @var ShopRebate $item */
+        $map = [['status', '=', 0], ['deleted', '=', 0], ['order_no', 'like', "{$order->getAttr('order_no')}%"]];
+        foreach (ShopRebate::mk()->where($map)->cursor() as $item) {
             $item->save(['status' => 1, 'remark' => '订单已确认收货！']);
             UserRebate::recount($item->getAttr('unid'));
         }
@@ -184,21 +186,22 @@ abstract class UserRebate
 
     /**
      * 取消订单发放返佣
-     * @param string $orderNo
+     * @param ShopOrder|string $order
      * @return boolean
      * @throws Exception
      * @throws DataNotFoundException
      * @throws DbException
      * @throws ModelNotFoundException
      */
-    public static function cancel(string $orderNo): bool
+    public static function cancel($order): bool
     {
-        $map = ['status' => 0, 'order_no' => $orderNo];
-        $order = ShopOrder::mk()->where($map)->findOrEmpty();
-        if ($order->isEmpty()) throw new Exception('订单状态异常！');
+        $order = UserOrder::widthOrder($order);
+        if ($order->isEmpty() || $order->getAttr('status') > 0) {
+            throw new Exception('订单状态异常！');
+        }
         // 更新返佣记录
-        $map = [['deleted', '=', 0], ['order_no', 'like', "{$orderNo}%"]];
-        foreach (ShopUserRebate::mk()->where($map)->cursor() as $item) {
+        $map = [['deleted', '=', 0], ['order_no', 'like', "{$order->getAttr('order_no')}%"]];
+        foreach (ShopRebate::mk()->where($map)->cursor() as $item) {
             $item->save(['status' => 0, 'deleted' => 1, 'remark' => '订单已取消退回返佣！']);
             UserRebate::recount($item->getAttr('unid'));
         }
@@ -216,16 +219,16 @@ abstract class UserRebate
         if ($isUpdate = !is_array($data)) $data = [];
         if ($unid > 0) {
             $count = PaymentTransfer::mk()->whereRaw("unid='{$unid}' and status>0")->sum('amount');
-            $total = ShopUserRebate::mk()->whereRaw("unid='{$unid}' and status=1 and deleted=0")->sum('amount');
-            $locks = ShopUserRebate::mk()->whereRaw("unid='{$unid}' and status=0 and deleted=0")->sum('amount');
+            $total = ShopRebate::mk()->whereRaw("unid='{$unid}' and status=1 and deleted=0")->sum('amount');
+            $locks = ShopRebate::mk()->whereRaw("unid='{$unid}' and status=0 and deleted=0")->sum('amount');
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock']] = [$total, $count, $locks];
             if ($isUpdate && ($user = AccountUser::mk()->findOrEmpty($unid))->isExists()) {
                 $user->save(['extra' => array_merge($user->getAttr('extra'), $data)]);
             }
         } else {
             $count = PaymentTransfer::mk()->whereRaw("status > 0")->sum('amount');
-            $total = ShopUserRebate::mk()->whereRaw("status = 1 and deleted = 0")->sum('amount');
-            $locks = ShopUserRebate::mk()->whereRaw("status = 0 and deleted = 0")->sum('amount');
+            $total = ShopRebate::mk()->whereRaw("status = 1 and deleted = 0")->sum('amount');
+            $locks = ShopRebate::mk()->whereRaw("status = 0 and deleted = 0")->sum('amount');
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock']] = [$total, $count, $locks];
         }
         return [$total, $count, $locks];
@@ -269,7 +272,7 @@ abstract class UserRebate
         if (empty($rel)) return false;
         $ono = self::$order['order_no'];
         $map = ['code' => md5("{$cfg['code']}#{$ono}#{$rel['unid']}#{$cfg['type']}")];
-        if (ShopUserRebate::mk()->where($map)->findOrEmpty()->isExists()) return false;
+        if (ShopRebate::mk()->where($map)->findOrEmpty()->isExists()) return false;
         // 根据配置计算返佣数据
         $value = floatval($cfg["p{$idx}_reward_number"] ?: '0.00');
         if ($cfg["p{$idx}_reward_type"] == 0) {
@@ -298,7 +301,7 @@ abstract class UserRebate
     protected static function _frist(array $cfg, array $rel, int $idx): bool
     {
         // 是否首次购买
-        $orders = ShopUserRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
+        $orders = ShopRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
         if (count($orders) > 1 || (count($orders) === 1 && !in_array(self::$order['order_no'], $orders))) return false;
         // 发放用户首推奖励
         return self::_order($cfg, $rel, $idx);
@@ -314,7 +317,7 @@ abstract class UserRebate
     protected function _repeat(array $cfg, array $rel, int $idx): bool
     {
         // 是否复购购买
-        $orders = ShopUserRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
+        $orders = ShopRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
         if (count($orders) < 1 || (count($orders) === 1 && in_array(self::$order['order_no'], $orders))) return false;
         // 发放用户复购奖励
         return self::_order($cfg, $rel, $idx);
@@ -357,7 +360,7 @@ abstract class UserRebate
      */
     private static function wRebate(int $unid, array $map, string $name, float $amount): bool
     {
-        return ShopUserRebate::mk()->save(array_merge([
+        return ShopRebate::mk()->save(array_merge([
             'unid'         => $unid,
             'date'         => date('Y-m-d'),
             'code'         => CodeExtend::uniqidDate(16, 'R'),

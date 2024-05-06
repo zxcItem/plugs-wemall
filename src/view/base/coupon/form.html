@@ -1,0 +1,68 @@
+{extend name="main"}
+
+{block name="button"}
+<button data-target-submit class='layui-btn layui-btn-sm'>保存数据</button>
+<button data-target-backup class="layui-btn layui-btn-sm layui-btn-danger" data-confirm="确认要取消编辑吗？">取消编辑</button>
+{/block}
+
+{block name='content'}
+<form action="{:sysuri()}" method="post" data-auto="true" class="layui-form layui-card" data-table-id="CouponTable">
+    <div class="layui-card-body">
+
+        <label class="layui-form-item relative block">
+            <span class="help-label"><b>优惠券名称</b>Coupon Name</span>
+            <input class="layui-input" name="name" placeholder="请输入优惠券名称" required value='{$vo.name|default=""}'>
+        </label>
+
+        <div class="layui-form-item">
+            <span class="help-label"><b>优惠券图标</b>Coupon Cover</span>
+            <div><input type="hidden" name="cover" placeholder="请输入优惠券名称" value='{$vo.cover|default=""}'></div>
+        </div>
+
+        <div class="flex">
+            <label class="layui-form-item ta-mr-15">
+                <span class="help-label label-required-prev"><b>优惠券金额</b>Coupon Amount</span>
+                <input class="layui-input" type="number" name="amount" lay-precision="2" lay-affix="number" min="0" placeholder="请输入优惠券金额" required value='{$vo.amount|default="0"}'>
+            </label>
+            <label class="layui-form-item ta-mr-15">
+                <span class="help-label label-required-prev"><b>有效时间 ( 天 )</b>Coupon Expire</span>
+                <input class="layui-input" type="number" name="expire_days" lay-affix="number" min="0" placeholder="请输入有效时间" required value='{$vo.expire_days|default="0"}'>
+            </label>
+            <label class="layui-form-item ta-mr-15">
+                <span class="help-label label-required-prev"><b>优惠券库存</b>Coupon Stock</span>
+                <input class="layui-input" type="number" name="stock" lay-affix="number" min="0" placeholder="请输入优惠券库存" required value='{$vo.stock|default="0"}'>
+            </label>
+        </div>
+
+        <div class="layui-form-item">
+            <span class="help-label"><b>优惠券描述</b>Coupon Remark</span>
+            <label class="relative block">
+                <textarea class="layui-textarea" name="remark" placeholder="请输入优惠券描述">{$vo.remark|default=''}</textarea>
+            </label>
+        </div>
+
+        <div class="layui-form-item label-required-prev">
+            <span class="help-label"><b>优惠券内容</b>Coupon Content</span>
+            <label class="relative block">
+                <textarea class="layui-hide" name="content" placeholder="请输入优惠券内容">{$vo.content|default=''}</textarea>
+            </label>
+        </div>
+
+        <div class="hr-line-dashed"></div>
+        {notempty name='vo.id'}<input name='id' type='hidden' value='{$vo.id}'>{/notempty}
+
+        <div class="layui-form-item text-center">
+            <button class="layui-btn" type="submit">保存数据</button>
+            <button class="layui-btn layui-btn-danger" data-confirm="确定要取消编辑吗？" type='button' data-target-backup>取消编辑</button>
+        </div>
+
+    </div>
+</form>
+
+<script>
+    $(function () {
+        $('[name="cover"]').uploadOneImage()
+        require(['ckeditor'], () => window.createEditor('[name=content]'))
+    })
+</script>
+{/block}

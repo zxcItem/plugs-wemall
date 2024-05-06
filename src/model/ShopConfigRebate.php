@@ -9,10 +9,10 @@ use plugin\wemall\service\UserRebate;
 
 /**
  * 用户返佣模型
- * @class ShopUserRebateConfig
+ * @class ShopConfigRebate
  * @package plugin\wemall\model
  */
-class ShopUserRebateConfig extends Abs
+class ShopConfigRebate extends Abs
 {
     /**
      * 数据输出处理

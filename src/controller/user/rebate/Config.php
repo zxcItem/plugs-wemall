@@ -5,7 +5,7 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\user\rebate;
 
 use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopUserRebateConfig;
+use plugin\wemall\model\ShopConfigRebate;
 use plugin\wemall\service\UserRebate;
 use think\admin\Controller;
 use think\admin\extend\CodeExtend;
@@ -31,7 +31,7 @@ class Config extends Controller
      */
     public function index()
     {
-        ShopUserRebateConfig::mQuery()->layTable(function () {
+        ShopConfigRebate::mQuery()->layTable(function () {
             $this->title = '返佣规则配置';
             $this->prizes = UserRebate::prizes;
         }, function (QueryHelper $query) {
@@ -47,7 +47,7 @@ class Config extends Controller
     public function add()
     {
         $this->title = '添加返佣规则';
-        ShopUserRebateConfig::mForm('form');
+        ShopConfigRebate::mForm('form');
     }
 
     /**
@@ -57,7 +57,7 @@ class Config extends Controller
     public function edit()
     {
         $this->title = '编辑返佣规则';
-        ShopUserRebateConfig::mForm('form');
+        ShopConfigRebate::mForm('form');
     }
 
     /**
@@ -84,7 +84,7 @@ class Config extends Controller
      */
     public function state()
     {
-        ShopUserRebateConfig::mSave($this->_vali([
+        ShopConfigRebate::mSave($this->_vali([
             'status.in:0,1'  => '状态值范围异常！',
             'status.require' => '状态值不能为空！',
         ]));
@@ -96,6 +96,6 @@ class Config extends Controller
      */
     public function remove()
     {
-        ShopUserRebateConfig::mDelete();
+        ShopConfigRebate::mDelete();
     }
 }
