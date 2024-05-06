@@ -5,6 +5,8 @@ declare (strict_types=1);
 namespace plugin\wemall\command;
 
 use plugin\account\model\AccountRelation;
+use plugin\account\model\AccountUser;
+use plugin\account\model\PluginAccountUser;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\Command;
 use think\admin\Exception;
@@ -34,13 +36,14 @@ class Users extends Command
      */
     protected function execute(Input $input, Output $output)
     {
-        [$total, $count] = [AccountRelation::mk()->count(), 0];
-        foreach (AccountRelation::mk()->field('unid')->cursor() as $user) try {
-            $this->queue->message($total, ++$count, "刷新用户 [{$user['unid']}] 数据...");
-            UserUpgrade::recount(intval($user['unid']), true);
-            $this->queue->message($total, $count, "刷新用户 [{$user['unid']}] 数据成功", 1);
+        [$total, $count] = [AccountUser::mk()->count(), 0];
+        foreach (AccountUser::mk()->field('id')->order('id desc')->cursor() as $user) try {
+            $this->queue->message($total, ++$count, "刷新用户 [{$user['id']}] 数据...");
+            UserUpgrade::recount(intval($user['id']), true);
+            UserUpgrade::upgrade(intval($user['id']));
+            $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据成功", 1);
         } catch (\Exception $exception) {
-            $this->queue->message($total, $count, "刷新用户 [{$user['unid']}] 数据失败, {$exception->getMessage()}", 1);
+            $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据失败, {$exception->getMessage()}", 1);
         }
         $this->setQueueSuccess("此次共处理 {$total} 个刷新操作。");
     }
