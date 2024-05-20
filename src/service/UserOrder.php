@@ -11,6 +11,7 @@ use plugin\wemall\model\ShopConfigDiscount;
 use plugin\shop\model\ShopOrder;
 use plugin\shop\model\ShopOrderItem;
 use plugin\account\model\AccountRelation;
+use plugin\wemall\model\ShopRebate;
 use think\admin\Exception;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;
@@ -45,11 +46,11 @@ class UserOrder
 
     /**
      * 根据订单更新用户等级
-     * @param string $orderNo
+     * @param $order
      * @return array|null [USER, ORDER, ENTRY]
-     * @throws Exception
      * @throws DataNotFoundException
      * @throws DbException
+     * @throws Exception
      * @throws ModelNotFoundException
      */
     public static function upgrade($order): ?array
@@ -118,61 +119,6 @@ class UserOrder
     }
 
     /**
-     * 更新订单支付状态
-     * @param ShopOrder|string $order 订单模型
-     * @param PaymentRecord $payment 支付行为记录
-     * @return array|bool|string|void|null
-     * @throws Exception
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
-     * @remark 订单状态(0已取消,1预订单,2待支付,3待审核,4待发货,5已发货,6已收货,7已评论)
-     */
-    public static function change($order, PaymentRecord $payment)
-    {
-        $order = self::widthOrder($order);
-        if ($order->isEmpty()) return null;
-
-        // 同步订单支付统计
-        $ptotal = Payment::totalPaymentAmount($payment->getAttr('order_no'));
-        $order->appendData([
-            'payment_time'    => $payment->getAttr('create_time'),
-            'payment_amount'  => $ptotal['amount'] ?? 0,
-            'amount_payment'  => $ptotal['payment'] ?? 0,
-            'amount_balance'  => $ptotal['balance'] ?? 0,
-            'amount_integral' => $ptotal['integral'] ?? 0,
-        ], true);
-
-        // 订单已经支付完成
-        if ($order->getAttr('payment_amount') >= $order->getAttr('amount_real')) {
-            // 已完成支付，更新订单状态
-            $status = $order->getAttr('delivery_type') ? 4 : 5;
-            $order->save(['status' => $status, 'payment_status' => 1]);
-            // 确认完成支付，发放余额积分奖励及升级返佣
-            return static::confirm($order);
-        }
-
-        // 退款或部分退款，仅更新订单支付统计
-        if ($payment->getAttr('refund_status')) {
-            return $order->save();
-        }
-
-        // 提交支付凭证，只需更新订单状态为【待审核】
-        $isVoucher = $payment->getAttr('channel_type') === Payment::VOUCHER;
-        if ($isVoucher && $payment->getAttr('audit_status') === 1) return $order->save([
-            'status' => 3, 'payment_status' => 1,
-        ]);
-
-        // 凭证支付审核被拒绝，订单回滚到未支付状态
-        if ($isVoucher && $payment->getAttr('audit_status') === 0) {
-            if ($order->getAttr('status') === 3) $order->save(['status' => 2]);
-            return self::upgrade($order);
-        } else {
-            $order->save();
-        }
-    }
-
-    /**
      * 取消订单撤销奖励
      * @param ShopOrder|string $order
      * @param boolean $setRebate 更新返佣
@@ -199,28 +145,22 @@ class UserOrder
     }
 
     /**
-     * 支付成功发放奖励
+     * 确认收货订单返佣
      * @param ShopOrder|string $order
-     * @return string
+     * @return boolean
+     * @throws Exception
      */
-    public static function confirm($order): string
+    public static function confirm(string $order): bool
     {
-        try { /* 创建用户奖励 */
-            UserReward::create($order, $code);
-        } catch (\Exception $exception) {
-            trace_file($exception);
+        $order = UserOrder::widthOrder($order);
+        if ($order->isEmpty() || $order->getAttr('status') < 6) {
+            throw new Exception('订单状态异常！');
         }
-        try { /* 订单返佣处理 */
-            UserRebate::create($order);
-        } catch (\Exception $exception) {
-            trace_file($exception);
+        $map = [['status', '=', 0], ['deleted', '=', 0], ['order_no', 'like', "{$order}%"]];
+        foreach (ShopRebate::mk()->where($map)->cursor() as $item) {
+            $item->save(['status' => 1, 'remark' => '订单已确认收货！']);
+            UserRebate::recount($item->getAttr('unid'));
         }
-        try { /* 升级用户等级 */
-            self::upgrade($order);
-        } catch (\Exception $exception) {
-            trace_file($exception);
-        }
-        // 返回奖励单号
-        return $code;
+        return true;
     }
 }

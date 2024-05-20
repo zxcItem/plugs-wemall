@@ -10,6 +10,7 @@ use plugin\shop\model\ShopOrder;
 use plugin\wemall\command\Users;
 use plugin\wemall\service\UserOrder;
 use plugin\wemall\service\UserRebate;
+use plugin\wemall\service\UserUpgrade;
 use think\admin\Plugin;
 
 /**
@@ -40,16 +41,36 @@ class Service extends Plugin
         $this->commands([Users::class]);
 
         // 注册支付完成事件
-        $this->app->event->listen('PluginMallPaymentSuccess', function (PaymentRecord $payment) {
-            $this->app->log->notice("Event PluginMallPaymentSuccess {$payment->getAttr('order_no')}");
-            $order = ShopOrder::mk()->where(['order_no' => $payment->getAttr('order_no')])->findOrEmpty();
-            $order->isExists() && UserOrder::payment($order, $payment);
+        $this->app->event->listen('PluginWeMallOrderUpgrade', function ($order) {
+            $this->app->log->notice("Event PluginWeMallOrderUpgrade {$order}");
+            UserOrder::upgrade($order);
         });
 
         // 注册订单确认事件
-        $this->app->event->listen('PluginMallPaymentConfirm', function ($data) {
-            $this->app->log->notice("Event PluginMallPaymentConfirm {$data['order_no']}");
-            UserRebate::confirm($data['order_no']);
+        $this->app->event->listen('PluginWeMallOrderConfirm', function ($order) {
+            $this->app->log->notice("Event PluginWeMallOrderConfirm {$order}");
+            UserOrder::confirm($order);
+        });
+
+        // 订单返佣处理
+        $this->app->event->listen('PluginWeMallUserRebateCreate', function ($order) {
+            $this->app->log->notice("Event PluginWeMallUserRebateCreate {$order}");
+            UserRebate::create($order);
+        });
+        // 升级用户等级
+        $this->app->event->listen('PluginWeMallUserRebateUpgrade', function ($order) {
+            $this->app->log->notice("Event PluginWeMallUserRebateUpgrade {$order}");
+            UserOrder::upgrade($order);
+        });
+        // 取消订单返佣处理
+        $this->app->event->listen('PluginWeMallOrderUserRebateCancel', function ($order) {
+            $this->app->log->notice("Event PluginWeMallOrderUserRebateCancel {$order}");
+            UserRebate::cancel($order);
+        });
+        // 取消升级用户等级
+        $this->app->event->listen('PluginWeMallOrderUserUpgradeUpgrade', function ($unid) {
+            $this->app->log->notice("Event PluginWeMallOrderUserUpgradeUpgrade {$unid}");
+            UserUpgrade::upgrade($unid);
         });
     }
 
