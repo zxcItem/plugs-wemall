@@ -4,15 +4,13 @@ declare (strict_types=1);
 
 namespace plugin\wemall\command;
 
-use plugin\account\model\AccountRelation;
-use plugin\account\model\AccountUser;
 use plugin\account\model\PluginAccountUser;
+use plugin\wemall\service\UserAgent;
+use plugin\wemall\service\UserOrder;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\Command;
-use think\admin\Exception;
 use think\console\Input;
 use think\console\Output;
-use think\db\exception\DbException;
 
 /**
  * 同步计算用户信息
@@ -21,26 +19,29 @@ use think\db\exception\DbException;
  */
 class Users extends Command
 {
-
+    /**
+     * 指令参数配置
+     * @return void
+     */
     public function configure()
     {
-        $this->setName('plugin:mall:users')->setDescription('同步用户关联数据');
+        $this->setName('xdata:mall:users')->setDescription('同步用户关联数据');
     }
 
     /**
      * 执行指令
-     * @param Input $input
-     * @param Output $output
-     * @throws Exception
-     * @throws DbException
+     * @param \think\console\Input $input
+     * @param \think\console\Output $output
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DbException
      */
     protected function execute(Input $input, Output $output)
     {
-        [$total, $count] = [AccountUser::mk()->count(), 0];
-        foreach (AccountUser::mk()->field('id')->order('id desc')->cursor() as $user) try {
+        [$total, $count] = [PluginAccountUser::mk()->count(), 0];
+        foreach (PluginAccountUser::mk()->field('id')->order('id desc')->cursor() as $user) try {
             $this->queue->message($total, ++$count, "刷新用户 [{$user['id']}] 数据...");
+            UserUpgrade::upgrade(UserAgent::upgrade(UserOrder::entry(intval($user['id']))));
             UserUpgrade::recount(intval($user['id']), true);
-            UserUpgrade::upgrade(intval($user['id']));
             $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据成功", 1);
         } catch (\Exception $exception) {
             $this->queue->message($total, $count, "刷新用户 [{$user['id']}] 数据失败, {$exception->getMessage()}", 1);

@@ -4,14 +4,14 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\account\model\AccountUser;
-use plugin\wemall\model\ShopConfigDiscount;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopConfigRebate;
-use plugin\shop\model\ShopOrder;
-use plugin\wemall\model\ShopRebate;
-use plugin\wemall\model\AccountRelation;
-use plugin\payment\model\PaymentTransfer;
+use plugin\account\model\PluginAccountUser;
+use plugin\wemall\model\PluginWemallConfigDiscount;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\wemall\model\PluginWemallConfigRebate;
+use plugin\shop\model\PluginShopOrder;
+use plugin\wemall\model\PluginWemallUserRebate;
+use plugin\wemall\model\PluginWemallUserRelation;
+use plugin\wemall\model\PluginWemallUserTransfer;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
 use think\admin\Library;
@@ -94,7 +94,7 @@ abstract class UserRebate
 
     /**
      * 执行订单返佣处理
-     * @param ShopOrder|string $order
+     * @param PluginShopOrder|string $order
      * @throws \think\admin\Exception
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\DbException
@@ -113,34 +113,34 @@ abstract class UserRebate
 
         // 获取用户数据
         self::$unid = intval(self::$order['unid']);
-        self::$user = AccountUser::mk()->findOrEmpty(self::$unid)->toArray();
-        self::$rela0 = AccountRelation::mk()->where(['unid' => self::$unid])->findOrEmpty()->toArray();
+        self::$user = PluginAccountUser::mk()->findOrEmpty(self::$unid)->toArray();
+        self::$rela0 = PluginWemallUserRelation::mk()->where(['unid' => self::$unid])->findOrEmpty()->toArray();
         if (empty(self::$user) || empty(self::$rela0)) throw new Exception('用户不存在');
 
         // 获取上一级代理数据
         if (self::$order['puid1'] > 0) {
             $map = ['unid' => self::$order['puid1']];
-            self::$rela1 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
+            self::$rela1 = PluginWemallUserRelation::mk()->where($map)->findOrEmpty()->toArray();
             if (empty(self::$rela1)) throw new Exception('直接代理不存在');
         }
 
         // 获取上二级代理数据
         if (self::$order['puid2'] > 0) {
             $map = ['unid' => self::$order['puid2']];
-            self::$rela2 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
+            self::$rela2 = PluginWemallUserRelation::mk()->where($map)->findOrEmpty()->toArray();
             if (empty(self::$rela1)) throw new Exception('上二代理不存在');
         }
 
         // 获取上三级代理数据
         if (self::$order['puid3'] > 0) {
             $map = ['unid' => self::$order['puid3']];
-            self::$rela3 = AccountRelation::mk()->where($map)->findOrEmpty()->toArray();
+            self::$rela3 = PluginWemallUserRelation::mk()->where($map)->findOrEmpty()->toArray();
             if (empty(self::$rela1)) throw new Exception('上三代理不存在');
         }
 
         // 批量查询规则并发放奖励
         $where = ['status' => 1, 'deleted' => 0];
-        ShopConfigRebate::mk()->where($where)->order('sort desc,id desc')->select()->map(function (ShopConfigRebate $item) {
+        PluginWemallConfigRebate::mk()->where($where)->order('sort desc,id desc')->select()->map(function (PluginWemallConfigRebate $item) {
             self::$config = $item->toArray();
             // 返利结算时间
             self::$status = empty(self::$config['stype']) ? 1 : 0;
@@ -169,7 +169,7 @@ abstract class UserRebate
 
     /**
      * 确认收货订单返佣
-     * @param ShopOrder|string $order
+     * @param PluginShopOrder|string $order
      * @return boolean
      * @throws \think\admin\Exception
      */
@@ -179,9 +179,9 @@ abstract class UserRebate
         if ($order->isEmpty() || $order->getAttr('status') < 6) {
             throw new Exception('订单状态异常！');
         }
-        /** @var ShopRebate $item */
+        /** @var PluginWemallUserRebate $item */
         $map = [['status', '=', 0], ['deleted', '=', 0], ['order_no', 'like', "{$order->getAttr('order_no')}%"]];
-        foreach (ShopRebate::mk()->where($map)->cursor() as $item) {
+        foreach (PluginWemallUserRebate::mk()->where($map)->cursor() as $item) {
             $item->save(['status' => 1, 'remark' => '订单已确认收货！', 'comfirm_time' => date('Y-m-d H:i:s')]);
             UserRebate::recount($item->getAttr('unid'));
         }
@@ -190,7 +190,7 @@ abstract class UserRebate
 
     /**
      * 取消订单发放返佣
-     * @param ShopOrder|string $order
+     * @param PluginShopOrder|string $order
      * @return boolean
      * @throws \think\admin\Exception
      * @throws \think\db\exception\DataNotFoundException
@@ -205,7 +205,7 @@ abstract class UserRebate
         }
         // 更新返佣记录
         $map = [['deleted', '=', 0], ['order_no', 'like', "{$order->getAttr('order_no')}%"]];
-        foreach (ShopRebate::mk()->where($map)->cursor() as $item) {
+        foreach (PluginWemallUserRebate::mk()->where($map)->cursor() as $item) {
             $item->save(['status' => 0, 'deleted' => 1, 'remark' => '订单已取消退回返佣！']);
             UserRebate::recount($item->getAttr('unid'));
         }
@@ -223,18 +223,18 @@ abstract class UserRebate
     {
         if ($isUpdate = !is_array($data)) $data = [];
         if ($unid > 0) {
-            $total = ShopRebate::mk()->where($where)->whereRaw("unid='{$unid}' and deleted=0")->sum('amount');
-            $count = PaymentTransfer::mk()->where($where)->whereRaw("unid='{$unid}' and status>0")->sum('amount');
-            $locks = ShopRebate::mk()->where($where)->whereRaw("unid='{$unid}' and status=0 and deleted=0")->sum('amount');
+            $total = PluginWemallUserRebate::mk()->where($where)->whereRaw("unid='{$unid}' and deleted=0")->sum('amount');
+            $count = PluginWemallUserTransfer::mk()->where($where)->whereRaw("unid='{$unid}' and status>0")->sum('amount');
+            $locks = PluginWemallUserRebate::mk()->where($where)->whereRaw("unid='{$unid}' and status=0 and deleted=0")->sum('amount');
             $usable = round($total - $count - $locks, 2);
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock'], $data['rebate_usable']] = [$total, $count, $locks, $usable];
-            if ($isUpdate && ($user = AccountUser::mk()->findOrEmpty($unid))->isExists()) {
+            if ($isUpdate && ($user = PluginAccountUser::mk()->findOrEmpty($unid))->isExists()) {
                 $user->save(['extra' => array_merge($user->getAttr('extra'), $data)]);
             }
         } else {
-            $total = ShopRebate::mk()->where($where)->whereRaw("deleted=0")->sum('amount');
-            $count = PaymentTransfer::mk()->where($where)->whereRaw("status>0")->sum('amount');
-            $locks = ShopRebate::mk()->where($where)->whereRaw("status=0 and deleted=0")->sum('amount');
+            $total = PluginWemallUserRebate::mk()->where($where)->whereRaw("deleted=0")->sum('amount');
+            $count = PluginWemallUserTransfer::mk()->where($where)->whereRaw("status>0")->sum('amount');
+            $locks = PluginWemallUserRebate::mk()->where($where)->whereRaw("status=0 and deleted=0")->sum('amount');
             $usable = round($total - $count - $locks, 2);
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock'], $data['rebate_usable']] = [$total, $count, $locks, $usable];
         }
@@ -252,11 +252,11 @@ abstract class UserRebate
     {
         // 解析商品折扣规则
         $discs = [];
-        foreach (ShopConfigDiscount::items() as $v) {
+        foreach (PluginWemallConfigDiscount::items() as $v) {
             foreach ($v['items'] as $vv) $discs[$vv['level']][] = floatval($vv['discount']);
         }
         // 合并等级折扣及奖励
-        $levels = ShopConfigLevel::items(null);
+        $levels = PluginWemallConfigLevel::items(null);
         foreach ($levels as &$level) {
             $level['prizes'] = [];
             if (($disc = round(min($discs[$level['number']] ?? [100]))) < 100) $level['prizes'][] = [
@@ -279,7 +279,7 @@ abstract class UserRebate
         if (empty($relation)) return false;
         $ono = self::$order['order_no'];
         $map = ['hash' => md5("{$config['code']}#{$ono}#{$relation['unid']}#{$config['type']}")];
-        if (ShopRebate::mk()->where($map)->findOrEmpty()->isExists()) return false;
+        if (PluginWemallUserRebate::mk()->where($map)->findOrEmpty()->isExists()) return false;
         // 根据配置计算返利数据
         $value = floatval($config["p{$layer}_reward_number"] ?: '0.00');
         if ($config["p{$layer}_reward_type"] == 0) {
@@ -307,7 +307,7 @@ abstract class UserRebate
     protected static function _frist(int $layer, array $relation): bool
     {
         // 是否首次购买
-        $orders = ShopRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
+        $orders = PluginWemallUserRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
         if (count($orders) > 1 || (count($orders) === 1 && !in_array(self::$order['order_no'], $orders))) return false;
         // 发放用户首推奖励
         return self::_order($layer, $relation);
@@ -322,7 +322,7 @@ abstract class UserRebate
     protected function _repeat(int $layer, array $relation): bool
     {
         // 是否复购购买
-        $orders = ShopRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
+        $orders = PluginWemallUserRebate::mk()->where(['order_unid' => self::$unid])->limit(2)->column('order_no');
         if (count($orders) < 1 || (count($orders) === 1 && in_array(self::$order['order_no'], $orders))) return false;
         // 发放用户复购奖励
         return self::_order($layer, $relation);
@@ -365,7 +365,7 @@ abstract class UserRebate
      */
     private static function wRebate(int $unid, array $map, string $name, float $amount, int $layer = 0): bool
     {
-        $rebate = ShopRebate::mk()->where($map)->findOrEmpty();
+        $rebate = PluginWemallUserRebate::mk()->where($map)->findOrEmpty();
         if ($rebate->isExists()) return false;
         if (self::$status) $map['confirm_time'] = formatdate(self::$order['payment_time']);
         return $rebate->save(array_merge([

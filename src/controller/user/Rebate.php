@@ -1,45 +1,39 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace plugin\wemall\controller\user;
 
-use plugin\account\model\AccountUser;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopRebate;
+use plugin\account\model\PluginAccountUser;
+use plugin\wemall\model\PluginWemallUserRebate;
 use plugin\wemall\service\UserRebate;
 use think\admin\Controller;
-use think\admin\Exception;
 use think\admin\helper\QueryHelper;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 use think\db\Query;
 
 /**
- * 用户返佣管理
+ * 代理返佣管理
  * @class Rebate
  * @package plugin\wemall\controller\user
  */
 class Rebate extends Controller
 {
     /**
-     * 用户返佣管理
+     * 代理返佣管理
      * @auth true
      * @menu true
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function index()
     {
-        ShopRebate::mQuery()->layTable(function () {
-            $this->title = '用户返佣管理';
+        PluginWemallUserRebate::mQuery()->layTable(function () {
+            $this->title = '代理返佣管理';
             $this->rebate = UserRebate::recount(0);
         }, static function (QueryHelper $query) {
             // 数据关联
-            $query->equal('type')->like('name,order_no')->dateBetween('create_time')->with([
+            $query->equal('type,status')->like('name,order_no')->dateBetween('create_time')->with([
                 'user'  => function (Query $query) {
                     $query->field('id,code,phone,nickname,headimg');
                 },
@@ -47,23 +41,12 @@ class Rebate extends Controller
                     $query->field('id,code,phone,nickname,headimg');
                 }
             ]);
-
-            // 会员条件查询
-            $db = AccountUser::mQuery()->like('nickname|phone#user')->db();
-            if ($db->getOptions('where')) $query->whereRaw("order_unid in {$db->field('id')->buildSql()}");
-
             // 代理条件查询
-            $db = AccountUser::mQuery()->like('nickname|phone#agent')->db();
+            $db = PluginAccountUser::mQuery()->like('nickname|phone#agent')->db();
             if ($db->getOptions('where')) $query->whereRaw("unid in {$db->field('id')->buildSql()}");
+            // 会员条件查询
+            $db = PluginAccountUser::mQuery()->like('nickname|phone#user')->db();
+            if ($db->getOptions('where')) $query->whereRaw("order_unid in {$db->field('id')->buildSql()}");
         });
-    }
-
-    /**
-     * @param array $data
-     * @return void
-     */
-    protected function _index_page_filter(array &$data)
-    {
-        foreach ($data as &$vo) $vo['status'] = $vo['status'] ? '已生效' : '未生效';
     }
 }

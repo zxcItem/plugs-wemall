@@ -5,19 +5,19 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\base;
 
-use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\wemall\model\PluginWemallConfigAgent;
 use think\admin\Controller;
 use think\admin\helper\QueryHelper;
 
 /**
- * 会员等级管理
- * @class Level
+ * 代理等级管理
+ * @class Agent
  * @package plugin\wemall\controller\base
  */
-class Level extends Controller
+class Agent extends Controller
 {
     /**
-     * 会员等级管理
+     * 代理等级管理
      * @auth true
      * @menu true
      * @return void
@@ -27,35 +27,35 @@ class Level extends Controller
      */
     public function index()
     {
-        PluginWemallConfigLevel::mQuery()->layTable(function () {
-            $this->title = '会员等级管理';
+        PluginWemallConfigAgent::mQuery()->layTable(function () {
+            $this->title = '代理等级管理';
         }, static function (QueryHelper $query) {
             $query->like('name')->equal('status')->dateBetween('create_time');
         });
     }
 
     /**
-     * 添加会员等级
+     * 添加代理等级
      * @auth true
      * @return void
      * @throws \think\db\exception\DbException
      */
     public function add()
     {
-        $this->max = PluginWemallConfigLevel::maxNumber() + 1;
-        PluginWemallConfigLevel::mForm('form');
+        $this->max = PluginWemallConfigAgent::maxNumber() + 1;
+        PluginWemallConfigAgent::mForm('form');
     }
 
     /**
-     * 编辑会员等级
+     * 编辑代理等级
      * @auth true
      * @return void
      * @throws \think\db\exception\DbException
      */
     public function edit()
     {
-        $this->max = PluginWemallConfigLevel::maxNumber();
-        PluginWemallConfigLevel::mForm('form');
+        $this->max = PluginWemallConfigAgent::maxNumber();
+        PluginWemallConfigAgent::mForm('form');
     }
 
     /**
@@ -65,22 +65,24 @@ class Level extends Controller
      */
     protected function _form_filter(array &$vo)
     {
-        if (empty($vo['extra'])) $vo['extra'] = [];
         if ($this->request->isGet()) {
-            $vo['number'] = $vo['number'] ?? PluginWemallConfigLevel::maxNumber();
+            if (empty($vo['extra'])) $vo['extra'] = [];
+            $vo['number'] = $vo['number'] ?? PluginWemallConfigAgent::maxNumber();
         } else {
-            $vo['utime'] = time();
-            if (empty($vo['number'])) {
-                $vo['extra'] = ['enter_vip_status' => 0, 'order_amount_status' => 0, 'order_amount_number' => 0];
-            } else {
-                $count = $vo['extra']['enter_vip_status'] = empty($vo['extra']['enter_vip_status']) ? 0 : 1;
-                if (empty($vo['extra']['order_amount_status']) || floatval($vo['extra']['order_amount_number']) <= 0) {
-                    $vo['extra'] = array_merge($vo['extra'], ['order_amount_status' => 0, 'order_amount_number' => 0]);
+            $count = 0;
+            foreach ($vo['extra'] as $k => $v) if (is_numeric(stripos($k, '_number'))) {
+                $ats = explode('_', $k);
+                $key = "{$ats[0]}_{$ats[1]}_status";
+                if ($vo['number'] > 0) {
+                    isset($vo['extra'][$key]) || $vo['extra'][$key] = 0;
+                    floatval($v) > 0 ? $count += 1 : ($vo['extra'][$key] = 0);
                 } else {
-                    $count += 1;
-                    $vo['extra']['order_amount_status'] = 1;
+                    $vo['extra'][$k] = 0;
+                    $vo['extra'][$key] = 0;
                 }
-                if (empty($count)) $this->error('升级条件不能为空！');
+            }
+            if (empty($count) && $vo['number'] > 0) {
+                $this->error('升级条件不能为空！');
             }
         }
     }
@@ -97,7 +99,7 @@ class Level extends Controller
         if ($state) {
             $isasc = input('old_number', 0) <= input('number', 0);
             $order = $isasc ? 'number asc,utime asc' : 'number asc,utime desc';
-            foreach (PluginWemallConfigLevel::mk()->order($order)->select() as $number => $upgrade) {
+            foreach (PluginWemallConfigAgent::mk()->order($order)->select() as $number => $upgrade) {
                 $upgrade->save(['number' => $number]);
             }
         }
@@ -109,16 +111,16 @@ class Level extends Controller
      */
     public function state()
     {
-        PluginWemallConfigLevel::mSave();
+        PluginWemallConfigAgent::mSave();
     }
 
     /**
-     * 删除会员等级
+     * 删除代理等级
      * @auth true
      */
     public function remove()
     {
-        PluginWemallConfigLevel::mDelete();
+        PluginWemallConfigAgent::mDelete();
     }
 
     /**

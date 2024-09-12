@@ -1,21 +1,22 @@
 <?php
 
 
+declare (strict_types=1);
+
 namespace plugin\wemall\model;
 
-
-use think\db\exception\DbException;
+use plugin\shop\model\AbsUser;
 
 /**
  * 商城代理等级数据
- * @class ShopConfigAgent
+ * @class PluginWemallConfigAgent
  * @package plugin\wemall\model
  */
-class ShopConfigAgent extends AbsUser
+class PluginWemallConfigAgent extends AbsUser
 {
     /**
      * 获取代理等级
-     * @param string|null $first
+     * @param ?string $first 增加首项内容
      * @param string $fields 指定查询字段
      * @return array
      */
@@ -29,7 +30,7 @@ class ShopConfigAgent extends AbsUser
     /**
      * 获取最大级别数
      * @return integer
-     * @throws DbException
+     * @throws \think\db\exception\DbException
      */
     public static function maxNumber(): int
     {

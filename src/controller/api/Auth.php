@@ -5,8 +5,8 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\api;
 
-use plugin\account\controller\api\Auth as AccountAuth;
-use plugin\account\model\AccountRelation;
+use plugin\shop\controller\api\Auth as ShopAuth;
+use plugin\wemall\model\PluginWemallUserRelation;
 use think\exception\HttpResponseException;
 
 /**
@@ -14,11 +14,11 @@ use think\exception\HttpResponseException;
  * @class Auth
  * @package plugin\wemall\controller\api
  */
-abstract class Auth extends AccountAuth
+abstract class Auth extends ShopAuth
 {
     /**
      * 用户关系
-     * @var AccountRelation
+     * @var PluginWemallUserRelation
      */
     protected $relation;
 
@@ -50,7 +50,7 @@ abstract class Auth extends AccountAuth
      */
     protected function withUserRelation(): Auth
     {
-        $this->relation = AccountRelation::sync($this->unid);
+        $this->relation = PluginWemallUserRelation::withInit($this->unid);
         $this->levelCode = intval($this->relation->getAttr('level_code'));
         return $this;
     }

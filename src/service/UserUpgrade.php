@@ -4,39 +4,36 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\account\model\AccountUser;
-use plugin\payment\service\BalanceService;
-use plugin\payment\service\IntegralService;
+use plugin\account\model\PluginAccountUser;
+use plugin\payment\service\Balance;
+use plugin\payment\service\Integral;
 use plugin\shop\service\UserAction;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\shop\model\ShopOrder;
-use plugin\shop\model\ShopOrderItem;
-use plugin\wemall\model\AccountRelation;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\shop\model\PluginShopOrder;
+use plugin\wemall\model\PluginWemallUserRelation;
 use think\admin\Exception;
 use think\admin\Library;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 
 /**
- * 用户等级升级服务
+ * 会员等级升级服务
  * @class UserUpgrade
  * @package plugin\wemall\service
  */
 abstract class UserUpgrade
 {
-
     /**
      * 读取用户代理编号
-     * @param integer $unid 会员用户
+     * @param integer|PluginWemallUserRelation $unid 会员用户
      * @param integer $puid 代理用户
-     * @param AccountRelation|array|null $relation 关联的模型
      * @return array
-     * @throws Exception
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
-    public static function withAgent(int $unid, int $puid, $relation = null): array
+    public static function withAgent($unid, int $puid): array
     {
-        [$rela, $unid] = AccountRelation::withRelation($unid);
+        [$rela, $unid] = PluginWemallUserRelation::withRelation($unid);
         // 绑定代理数据
         $puid1 = $rela['puid1'] ?? 0; // 上1级代理
         $puid2 = $rela['puid2'] ?? 0; // 上2级代理
@@ -53,16 +50,16 @@ abstract class UserUpgrade
 
     /**
      * 尝试绑定上级代理
-     * @param integer $unid 用户 UNID
+     * @param integer|PluginWemallUserRelation $unid 用户 UNID
      * @param integer $puid 代理 UNID
      * @param integer $mode 操作类型（0临时绑定, 1永久绑定, 2强行绑定）
-     * @return AccountRelation
-     * @throws Exception
+     * @return \plugin\wemall\model\PluginWemallUserRelation
+     * @throws \think\admin\Exception
      */
-    public static function bindAgent(int $unid, int $puid = 0, int $mode = 1): AccountRelation
+    public static function bindAgent($unid, int $puid = 0, int $mode = 1): PluginWemallUserRelation
     {
         try {
-            [$rela, $unid] = AccountRelation::withRelation($unid);
+            [$rela, $unid] = PluginWemallUserRelation::withRelation($unid);
             // 已经绑定不允许替换原代理信息
             $puid1 = intval($rela->getAttr('puid1'));
             if ($puid1 > 0 && $rela->getAttr('puids') > 0) {
@@ -73,7 +70,7 @@ abstract class UserUpgrade
             if (empty($puid)) throw new Exception('代理不存在！');
             if ($unid === $puid) throw new Exception('不能绑定自己！');
             // 检查上级用户
-            $parent = AccountRelation::withInit($puid);
+            $parent = PluginWemallUserRelation::withInit($puid);
             if (strpos($parent->getAttr('path'), ",{$unid},") !== false) {
                 throw new Exception('不能绑下级！');
             }
@@ -93,12 +90,12 @@ abstract class UserUpgrade
 
     /**
      * 更替用户上级关系
-     * @param AccountRelation $relation
-     * @param AccountRelation $parent
+     * @param PluginWemallUserRelation $relation
+     * @param PluginWemallUserRelation $parent
      * @param array $extra 扩展数据
-     * @return AccountRelation
+     * @return PluginWemallUserRelation
      */
-    public static function forceReplaceParent(AccountRelation $relation, AccountRelation $parent, array $extra = []): AccountRelation
+    public static function forceReplaceParent(PluginWemallUserRelation $relation, PluginWemallUserRelation $parent, array $extra = []): PluginWemallUserRelation
     {
         $path1 = arr2str(str2arr("{$parent->getAttr('path')},{$parent->getAttr('unid')}"));
         $relation->save(array_merge([
@@ -108,9 +105,9 @@ abstract class UserUpgrade
             'puid3' => $parent->getAttr('puid2'),
             'layer' => substr_count($path1, ','),
         ], $extra));
-        /** 更新所有下级代理 @var AccountRelation $item */
+        /** 更新所有下级代理 @var PluginWemallUserRelation $item */
         $path2 = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
-        foreach (AccountRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->cursor() as $item) {
+        foreach (PluginWemallUserRelation::mk()->whereLike('path', "{$path2}%")->order('layer desc')->cursor() as $item) {
             $text = arr2str(str2arr("{$relation->getAttr('path')},{$relation->getAttr('unid')}"));
             $attr = array_reverse(str2arr($path3 = preg_replace("#^{$path2}#", $text, $item->getAttr('path'))));
             $item->save([
@@ -122,28 +119,28 @@ abstract class UserUpgrade
     }
 
     /**
-     * 同步计算用户等级
-     * @param integer $unid 指定用户UID
+     * 同步计算会员等级
+     * @param integer|PluginWemallUserRelation $unid 指定用户
      * @param boolean $parent 同步计算上级
      * @param ?string $orderNo 升级触发订单
-     * @return AccountRelation
-     * @throws Exception
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @return PluginWemallUserRelation
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
-    public static function upgrade(int $unid, bool $parent = true, ?string $orderNo = null): AccountRelation
+    public static function upgrade($unid, bool $parent = true, ?string $orderNo = null): PluginWemallUserRelation
     {
-        [$rela, $unid] = AccountRelation::withRelation($unid);
+        [$rela, $unid] = PluginWemallUserRelation::withRelation($unid);
         if ($rela->isEmpty()) throw new Exception("无效用户账号！");
         // 订单升级等级
         $map = ['unid' => $unid, 'payment_status' => 1];
-        $tmpCode = ShopOrder::mk()->where($map)->where('status', '>', 4)->max('level_member');
+        $tmpCode = PluginShopOrder::mk()->where($map)->where('status', '>', 4)->max('level_member');
         // 统计订单金额
-        $orderAmount = ShopOrder::mk()->where("unid={$unid} and status>=4")->sum('amount_total');
+        $orderAmount = PluginShopOrder::mk()->where("unid={$unid} and status>=4")->sum('amount_total');
         // 动态计算会员等级
         [$levelName, $levelCode, $levelCurr] = ['普通用户', 0, intval($rela->getAttr('level_code'))];
-        foreach (ShopConfigLevel::mk()->where(['status' => 1])->order('number desc')->cursor() as $item) {
+        foreach (PluginWemallConfigLevel::mk()->where(['status' => 1])->order('number desc')->cursor() as $item) {
             if ($item['number'] === intval($tmpCode) || empty($item['number'])) {
                 [$levelName, $levelCode] = [$item['name'], $item['number']];
                 break;
@@ -165,7 +162,7 @@ abstract class UserUpgrade
         if (!empty($orderNo)) $extra['level_order'] = $orderNo;
         if ($levelCode !== $levelCurr) $extra['level_change'] = date('Y-m-d H:i:s');
         // 更新用户扩展数据
-        $user = AccountUser::mk()->findOrEmpty($unid);
+        $user = PluginAccountUser::mk()->findOrEmpty($unid);
         $user->isExists() && $user->save(['extra' => array_merge($user->getAttr('extra'), $extra)]);
         // 会员等级数据
         $rela->save(['level_name' => $levelName, 'level_code' => $levelCode]);
@@ -183,20 +180,20 @@ abstract class UserUpgrade
      * @param int $unid 指定用户
      * @param boolean $init 初始化用户
      * @return array
-     * @throws Exception
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public static function recount(int $unid, bool $init = false): array
     {
         $data = [];
         // 初始化用户
-        if ($init) AccountRelation::withInit($unid);
+        if ($init) PluginWemallUserRelation::withInit($unid);
         // 重算余额 & 重算积分 & 重算行为 & 订单返佣
-        BalanceService::recount($unid, $data) && IntegralService::recount($unid, $data);
+        Balance::recount($unid, $data) && Integral::recount($unid, $data);
         UserAction::recount($unid, $data) && UserRebate::recount($unid, $data);
-        if (($user = AccountUser::mk()->findOrEmpty($unid))->isExists()) {
+        if (($user = PluginAccountUser::mk()->findOrEmpty($unid))->isExists()) {
             $user->save(['extra' => array_merge($user->getAttr('extra'), $data)]);
         }
         return $data;

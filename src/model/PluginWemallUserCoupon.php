@@ -1,9 +1,11 @@
 <?php
 
+
 declare (strict_types=1);
 
 namespace plugin\wemall\model;
 
+use plugin\shop\model\AbsUser;
 use think\model\relation\HasOne;
 
 /**
@@ -11,7 +13,7 @@ use think\model\relation\HasOne;
  * @class PluginWemallUserCoupon
  * @package plugin\wemall\model
  */
-class AccountUserCoupon extends AbsUser
+class PluginWemallUserCoupon extends AbsUser
 {
 
     /**
@@ -20,7 +22,7 @@ class AccountUserCoupon extends AbsUser
      */
     public function coupon(): HasOne
     {
-        return $this->hasOne(ShopConfigCoupon::class, 'id', 'coid');
+        return $this->hasOne(PluginWemallConfigCoupon::class, 'id', 'coid');
     }
 
     /**
@@ -49,7 +51,7 @@ class AccountUserCoupon extends AbsUser
     {
         $data = parent::toArray();
         if (isset($data['type'])) {
-            $data['type_name'] = ShopConfigCoupon::types[$data['type']] ?? $data['type'];
+            $data['type_name'] = PluginWemallConfigCoupon::types[$data['type']] ?? $data['type'];
         }
         return $data;
     }

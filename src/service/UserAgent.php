@@ -5,11 +5,11 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\account\model\AccountUser;
-use plugin\wemall\model\ShopConfigAgent;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\shop\model\ShopOrder;
-use plugin\wemall\model\AccountRelation;
+use plugin\account\model\PluginAccountUser;
+use plugin\wemall\model\PluginWemallConfigAgent;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\shop\model\PluginShopOrder;
+use plugin\wemall\model\PluginWemallUserRelation;
 use think\admin\Exception;
 use think\admin\Library;
 
@@ -23,39 +23,39 @@ abstract class UserAgent
 
     /**
      * 同步计算代理等级
-     * @param integer|AccountRelation $unid 指定用户UID
+     * @param integer|PluginWemallUserRelation $unid 指定用户UID
      * @param boolean $parent 同步计算上级
      * @param ?string $orderNo 升级触发订单
-     * @return AccountRelation
+     * @return PluginWemallUserRelation
      * @throws \think\admin\Exception
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public static function upgrade($unid, bool $parent = true, ?string $orderNo = null): AccountRelation
+    public static function upgrade($unid, bool $parent = true, ?string $orderNo = null): PluginWemallUserRelation
     {
-        [$rela, $unid] = AccountRelation::withRelation($unid);
+        [$rela, $unid] = PluginWemallUserRelation::withRelation($unid);
         if ($rela->isEmpty()) throw new Exception("无效用户账号！");
         // 筛选会员等级
-        $mLevels = ShopConfigLevel::mk()->where(['status' => 1, 'upgrade_team' => 1])->column('number');
+        $mLevels = PluginWemallConfigLevel::mk()->where(['status' => 1, 'upgrade_team' => 1])->column('number');
         // 统计团队数据
-        $model = AccountRelation::mk()->where(['level_code' => $mLevels]);
+        $model = PluginWemallUserRelation::mk()->where(['level_code' => $mLevels]);
         $teamsTotal = (clone $model)->whereLike('path', "{$rela->getAttr('path')}%")->count();
         $teamsDirect = (clone $model)->where(['puid1' => $unid])->count();
         $teamsIndirect = (clone $model)->where(['puid2' => $unid])->count();
         // 团队总金额(不含自己)
         $relaSql = (clone $model)->whereLike('path', "{$rela->getAttr('path')}%")->field('unid')->buildSql();
-        $amountTotal = ShopOrder::mk()->whereRaw("unid in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
+        $amountTotal = PluginShopOrder::mk()->whereRaw("unid in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
         // 直接及间接团队金额(不含自己)
         $relaSql = (clone $model)->where(['puid1' => $unid])->field('unid')->buildSql();
-        $amountDirect = ShopOrder::mk()->whereRaw("puid1 in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
-        $amountIndirect = ShopOrder::mk()->whereRaw("puid2 in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
+        $amountDirect = PluginShopOrder::mk()->whereRaw("puid1 in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
+        $amountIndirect = PluginShopOrder::mk()->whereRaw("puid2 in {$relaSql}")->where("unid={$unid} and status>=4")->sum('amount_total');
         // 通过订单升级等级
         $map = ['unid' => $unid, 'payment_status' => 1];
-        $tmpCode = ShopOrder::mk()->where($map)->where('status', '>', 4)->max('level_agent');
+        $tmpCode = PluginShopOrder::mk()->where($map)->where('status', '>', 4)->max('level_agent');
         // 动态计算会员等级
         [$levelName, $levelCode, $levelCurr] = ['会员用户', 0, intval($rela->getAttr('agent_level_code'))];
-        foreach (ShopConfigAgent::mk()->where(['status' => 1])->order('number desc')->select()->toArray() as $item) {
+        foreach (PluginWemallConfigAgent::mk()->where(['status' => 1])->order('number desc')->select()->toArray() as $item) {
             if ($item['number'] === intval($tmpCode) || empty($item['number'])) {
                 [$levelName, $levelCode] = [$item['name'], $item['number']];
                 break;
@@ -88,7 +88,7 @@ abstract class UserAgent
         if (!empty($orderNo)) $extra['agent_level_order'] = $orderNo;
         if ($levelCode !== $levelCurr) $extra['agent_level_change'] = date('Y-m-d H:i:s');
         // 更新用户扩展数据
-        $user = AccountUser::mk()->findOrEmpty($unid);
+        $user = PluginAccountUser::mk()->findOrEmpty($unid);
         $user->isExists() && $user->save(['extra' => array_merge($user->getAttr('extra'), $extra)]);
         // 代理等级数据
         $rela->save(['agent_level_name' => $levelName, 'agent_level_code' => $levelCode]);

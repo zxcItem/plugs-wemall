@@ -4,12 +4,12 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\shop;
 
-use plugin\wemall\model\ShopConfigDiscount;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\shop\model\ShopExpressTemplate;
-use plugin\wemall\model\ShopGoods;
-use plugin\shop\model\ShopGoodsCate;
-use plugin\shop\model\ShopGoodsMark;
+use plugin\wemall\model\PluginWemallConfigDiscount;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\shop\model\PluginShopExpressTemplate;
+use plugin\shop\model\PluginShopGoods;
+use plugin\shop\model\PluginShopGoodsCate;
+use plugin\shop\model\PluginShopGoodsMark;
 use plugin\shop\service\ConfigService;
 use think\admin\Controller;
 use think\admin\helper\QueryHelper;
@@ -36,12 +36,12 @@ class Goods extends Controller
     public function index()
     {
         $this->type = $this->request->get('type', 'index');
-        ShopGoods::mQuery($this->get)->layTable(function () {
+        PluginShopGoods::mQuery($this->get)->layTable(function () {
             $this->title = '商品数据管理';
-            $this->cates = ShopGoodsCate::items();
-            $this->marks = ShopGoodsMark::items();
-            $this->upgrades = ShopConfigLevel::items('普通商品');
-            $this->deliverys = ShopExpressTemplate::items(true);
+            $this->cates = PluginShopGoodsCate::items();
+            $this->marks = PluginShopGoodsMark::items();
+            $this->upgrades = PluginWemallConfigLevel::items('普通商品');
+            $this->deliverys = PluginShopExpressTemplate::items(true);
             $this->enableBalance = ConfigService::get('enable_balance');
             $this->enableIntegral = ConfigService::get('enable_integral');
         }, function (QueryHelper $query) {
@@ -57,7 +57,7 @@ class Goods extends Controller
      */
     public function edit()
     {
-        ShopGoods::mForm('form', 'code');
+        PluginShopGoods::mForm('form', 'code');
     }
 
     /**
@@ -70,8 +70,8 @@ class Goods extends Controller
     protected function _form_filter(array &$data)
     {
         if ($this->request->isGet()) {
-            $this->upgrades = ShopConfigLevel::items('普通商品');
-            $this->discounts = ShopConfigDiscount::items(true);
+            $this->upgrades = PluginWemallConfigLevel::items('普通商品');
+            $this->discounts = PluginWemallConfigDiscount::items(true);
         }
     }
 }

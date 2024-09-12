@@ -1,31 +1,29 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace plugin\wemall\model;
 
-
+use plugin\shop\model\AbsUser;
 use think\model\relation\HasMany;
 
 /**
- * 商城优惠券模型
- * @class ShopConfigCoupon
+ * 商城卡券模型
+ * @class PluginWemallConfigCoupon
  * @package plugin\wemall\model
  */
-class ShopConfigCoupon extends AbsUser
+class PluginWemallConfigCoupon extends AbsUser
 {
-
-// 卡券类型
+    // 卡券类型
     public const types = ['通用券', '商品券'];
 
     /**
      * 关联自己的卡券
-     * @return HasMany
+     * @return \think\model\relation\HasMany
      */
     public function usable(): HasMany
     {
-        return $this->hasMany(AccountUserCoupon::class, 'coid', 'id')->where(['deleted' => 0]);
+        return $this->hasMany(PluginWemallUserCoupon::class, 'coid', 'id')->where(['deleted' => 0]);
     }
 
     /**

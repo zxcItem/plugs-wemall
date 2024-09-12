@@ -6,8 +6,8 @@ declare (strict_types=1);
 namespace plugin\wemall\controller\api\auth;
 
 use plugin\wemall\controller\api\Auth;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopRebate;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\wemall\model\PluginWemallUserRebate;
 use plugin\wemall\service\UserRebate;
 use think\db\exception\DataNotFoundException;
 use think\db\exception\DbException;
@@ -28,15 +28,9 @@ class Rebate extends Auth
      */
     public function get()
     {
-        $date = trim(input('date', date('Y-m')), '-');
-        [$map, $year] = [['unid' => $this->unid], substr($date, 0, 4)];
-        $query = ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%");
-        $this->success('获取返佣统计', array_merge($query->order('id desc')->page(true, false, false, 10), [
-            'total' => [
-                '年度' => ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$year}%")->db()->sum('amount'),
-                '月度' => ShopRebate::mQuery()->where($map)->equal('type,status')->whereLike('date', "{$date}%")->db()->sum('amount'),
-            ],
-        ]));
+        $query = PluginWemallUserRebate::mQuery()->where(['unid' => $this->unid]);
+        $query->equal('type,status')->like('name|code|order_no#keys')->whereRaw('amount>0');
+        $this->success('获取返佣统计', $query->order('id desc')->page(true, false, false, 15));
     }
 
     /**
@@ -44,10 +38,14 @@ class Rebate extends Auth
      */
     public function prize()
     {
-        $map = ['unid' => $this->unid,'deleted' => 0,'status'=>1];
-        $prizes = ShopRebate::mk()->where($map)->group('type')->column('sum(amount) as total_amount,type');
-        foreach ($prizes as &$prize) $prize['name'] = UserRebate::prizes[$prize['type']];
-        $this->success('获取我的奖励', $prizes);
+        [$map, $data] = [['number' => $this->levelCode], []];
+        $prizes = PluginWemallUserRebate::mk()->group('name')->column('name');
+        $rebate = PluginWemallConfigLevel::mk()->where($map)->value('rebate_rule', '');
+        $codemap = array_merge($prizes, str2arr($rebate));
+        foreach (UserRebate::prizes as $code => $prize) {
+            if (in_array($code, $codemap)) $data[$code] = $prize;
+        }
+        $this->success('获取我的奖励', $data);
     }
 
     /**

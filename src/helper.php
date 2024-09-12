@@ -18,6 +18,7 @@ if (!function_exists('show_gspec')) {
     }
 }
 
+
 if (!function_exists('formatdate')) {
     /**
      * 日期格式过滤

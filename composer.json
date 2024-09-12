@@ -1,22 +1,17 @@
 {
     "type": "think-admin-plugin",
     "name": "xiaochao/plugs-wemall",
-    "license": "MIT",
-    "description": "PlugsWeMall for ThinkAdmin",
+    "version": "dev-master",
     "authors": [
         {
             "name": "叶落无痕",
-            "email": "1262847141@qq.com"
+            "email": "zxcaile@foxmail.com"
         }
     ],
     "require": {
         "php": ">7.1",
-        "ext-gd": "*",
-        "ext-curl": "*",
-        "ext-json": "*",
-        "zoujingli/think-install": "^1.0|@dev",
-        "zoujingli/think-library": "^6.1|@dev",
         "xiaochao/plugs-account": "dev-master",
+        "xiaochao/plugs-shop": "dev-master",
         "xiaochao/plugs-payment": "dev-master"
     },
     "autoload": {
@@ -26,8 +21,10 @@
     },
     "extra": {
         "config": {
-            "type": "plugin",
-            "name": "分销商城"
+            "type": "module",
+            "name": "分销商城管理",
+            "cover": "iconfont iconfont-shoplight",
+            "description": "分销商城系统为商品分佣,会员代理,代理分佣等基础功能"
         },
         "think": {
             "services": [

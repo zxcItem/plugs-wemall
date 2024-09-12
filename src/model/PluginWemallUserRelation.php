@@ -1,51 +1,59 @@
 <?php
 
+declare (strict_types=1);
 
 namespace plugin\wemall\model;
 
-
-use plugin\account\model\AccountUser;
+use plugin\account\model\PluginAccountUser;
+use plugin\shop\model\AbsUser;
+use plugin\wemall\service\UserAgent;
 use plugin\wemall\service\UserOrder;
 use plugin\wemall\service\UserUpgrade;
-use think\Exception;
+use think\admin\Exception;
 use think\model\relation\HasOne;
 
-class AccountRelation  extends AbsUser
+/**
+ * 用户关系数据
+ * @class PluginWemallUserRelation
+ * @package plugin\wemall\model
+ */
+class PluginWemallUserRelation extends AbsUser
 {
+
     /**
      * 关联上1级用户
-     * @return HasOne
+     * @return \think\model\relation\HasOne
      */
     public function user1(): HasOne
     {
-        return $this->hasOne(AccountUser::class, 'id', 'puid1');
+        return $this->hasOne(PluginAccountUser::class, 'id', 'puid1');
     }
 
     /**
      * 关联上2级用户
-     * @return HasOne
+     * @return \think\model\relation\HasOne
      */
     public function user2(): HasOne
     {
-        return $this->hasOne(AccountUser::class, 'id', 'puid2');
+        return $this->hasOne(PluginAccountUser::class, 'id', 'puid2');
     }
 
     /**
      * 关联上1级关系
-     * @return HasOne
+     * @return \think\model\relation\HasOne
      */
     public function agent1(): HasOne
     {
-        return $this->hasOne(AccountRelation::class, 'unid', 'puid1');
+        return $this->hasOne(PluginWemallUserRelation::class, 'unid', 'puid1');
     }
 
     /**
      * 关联上2级关系
-     * @return HasOne
+     * @return \think\model\relation\HasOne
      */
     public function agent2(): HasOne
     {
-        return $this->hasOne(AccountRelation::class, 'unid', 'puid2');
+        return $this->hasOne(PluginWemallUserRelation::class, 'unid', 'puid2');
     }
 
     /**
@@ -57,9 +65,9 @@ class AccountRelation  extends AbsUser
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public static function withInit(int $unid): AccountRelation
+    public static function withInit(int $unid): PluginWemallUserRelation
     {
-        $user = AccountUser::mk()->findOrEmpty($unid);
+        $user = PluginAccountUser::mk()->findOrEmpty($unid);
         if ($user->isEmpty()) throw new Exception("无效的用户！");
         if ($user->getAttr('deleted') > 0) throw new Exception('账号已删除！');
         $rela = static::mk()->lock(true)->where(['unid' => $unid])->findOrEmpty();
@@ -77,7 +85,7 @@ class AccountRelation  extends AbsUser
 
     /**
      * 转换用户关联模型
-     * @param int|AccountRelation $unid
+     * @param int|PluginWemallUserRelation $unid
      * @return array [Relation, UNID]
      * @throws \think\admin\Exception
      * @throws \think\db\exception\DataNotFoundException

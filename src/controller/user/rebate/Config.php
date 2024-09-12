@@ -4,15 +4,12 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\user\rebate;
 
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\wemall\model\ShopConfigRebate;
+use plugin\wemall\model\PluginWemallConfigAgent;
+use plugin\wemall\model\PluginWemallConfigRebate;
 use plugin\wemall\service\UserRebate;
 use think\admin\Controller;
 use think\admin\extend\CodeExtend;
 use think\admin\helper\QueryHelper;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 
 /**
  * 返佣规则配置
@@ -25,13 +22,13 @@ class Config extends Controller
      * 返佣规则配置
      * @auth true
      * @return void
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function index()
     {
-        ShopConfigRebate::mQuery()->layTable(function () {
+        PluginWemallConfigRebate::mQuery()->layTable(function () {
             $this->title = '返佣规则配置';
             $this->prizes = UserRebate::prizes;
         }, function (QueryHelper $query) {
@@ -47,7 +44,7 @@ class Config extends Controller
     public function add()
     {
         $this->title = '添加返佣规则';
-        ShopConfigRebate::mForm('form');
+        PluginWemallConfigRebate::mForm('form');
     }
 
     /**
@@ -57,7 +54,7 @@ class Config extends Controller
     public function edit()
     {
         $this->title = '编辑返佣规则';
-        ShopConfigRebate::mForm('form');
+        PluginWemallConfigRebate::mForm('form');
     }
 
     /**
@@ -71,7 +68,7 @@ class Config extends Controller
         }
         if ($this->request->isGet()) {
             $this->prizes = UserRebate::prizes;
-            $this->levels = ShopConfigLevel::items();
+            $this->levels = PluginWemallConfigAgent::items();
             array_unshift($this->levels, ['name' => '-> 无 <-', 'number' => -2], ['name' => '-> 任意 <-', 'number' => -1]);
         } else {
             $data['path'] = arr2str([$data['p3_level'], $data['p2_level'], $data['p1_level'], $data['p0_level']]);
@@ -84,7 +81,7 @@ class Config extends Controller
      */
     public function state()
     {
-        ShopConfigRebate::mSave($this->_vali([
+        PluginWemallConfigRebate::mSave($this->_vali([
             'status.in:0,1'  => '状态值范围异常！',
             'status.require' => '状态值不能为空！',
         ]));
@@ -96,6 +93,6 @@ class Config extends Controller
      */
     public function remove()
     {
-        ShopConfigRebate::mDelete();
+        PluginWemallConfigRebate::mDelete();
     }
 }

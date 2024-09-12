@@ -5,13 +5,10 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\base;
 
-use plugin\wemall\model\ShopConfigDiscount;
-use plugin\wemall\model\ShopConfigLevel;
+use plugin\wemall\model\PluginWemallConfigDiscount;
+use plugin\wemall\model\PluginWemallConfigLevel;
 use think\admin\Controller;
 use think\admin\helper\QueryHelper;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 
 /**
  * 折扣方案管理
@@ -24,14 +21,14 @@ class Discount extends Controller
      * 折扣方案管理
      * @auth true
      * @menu true
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function index()
     {
         $this->type = $this->get['type'] ?? 'index';
-        ShopConfigDiscount::mQuery()->layTable(function () {
+        PluginWemallConfigDiscount::mQuery()->layTable(function () {
             $this->title = '折扣方案管理';
         }, function (QueryHelper $query) {
             $query->where(['status' => intval($this->type === 'index'), 'deleted' => 0]);
@@ -44,7 +41,7 @@ class Discount extends Controller
      */
     public function add()
     {
-        ShopConfigDiscount::mForm('form');
+        PluginWemallConfigDiscount::mForm('form');
     }
 
     /**
@@ -53,7 +50,7 @@ class Discount extends Controller
      */
     public function edit()
     {
-        ShopConfigDiscount::mForm('form');
+        PluginWemallConfigDiscount::mForm('form');
     }
 
     /**
@@ -70,8 +67,8 @@ class Discount extends Controller
             }
             $vo['items'] = json_encode($rule, JSON_UNESCAPED_UNICODE);
         } else {
-            $this->levels = ShopConfigLevel::items();
-            if (empty($this->levels)) $this->error('未配置用户等级！');
+            $this->levels = PluginWemallConfigLevel::items();
+            if (empty($this->levels)) $this->error('未配置会员等级！');
             foreach ($vo['items'] ?? [] as $item) {
                 $vo["_level_{$item['level']}"] = $item['discount'];
             }
@@ -84,7 +81,7 @@ class Discount extends Controller
      */
     public function state()
     {
-        ShopConfigDiscount::mSave();
+        PluginWemallConfigDiscount::mSave();
     }
 
     /**
@@ -93,6 +90,6 @@ class Discount extends Controller
      */
     public function remove()
     {
-        ShopConfigDiscount::mDelete();
+        PluginWemallConfigDiscount::mDelete();
     }
 }

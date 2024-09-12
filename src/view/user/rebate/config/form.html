@@ -1,5 +1,5 @@
 <form action="{:sysuri()}" method="post" data-auto="true" class="layui-form layui-card" id="RebateForm" data-table-id="RebateConfigTable">
-    <div class="layui-card-body padding-left-40">
+    <div class="layui-card-body ta-pl-40">
 
         <div class="layui-row layui-form-item layui-col-space10">
             <div class="layui-col-xs3">
@@ -74,7 +74,7 @@
         {php} $lnumber = "p0_reward_number"; {/php}
         <div class="layui-row layui-col-space10">
             <div class="layui-col-xs2 layui-form-item">
-                <span class="help-label label-required-prev"><b>会员奖励</b></span>
+                <span class="help-label label-required-prev"><b>用户奖励</b></span>
                 <select class="layui-select" name="{$lname}">
                     {foreach $levels as $level}{if $level.number>-2}
                     {if isset($vo[$lname]) and $vo[$lname] eq $level.number}

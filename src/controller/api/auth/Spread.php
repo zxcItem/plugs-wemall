@@ -4,11 +4,9 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\api\auth;
 
-use plugin\account\model\AccountUser;
+use plugin\account\model\PluginAccountUser;
 use plugin\wemall\controller\api\Auth;
-use plugin\shop\model\ShopConfigPoster;
-use plugin\account\model\AccountRelation;
-use plugin\shop\service\PosterService;
+use plugin\wemall\model\PluginWemallUserRelation;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\Exception;
 use think\admin\helper\QueryHelper;
@@ -32,9 +30,9 @@ class Spread extends Auth
      */
     public function get()
     {
-        AccountRelation::mQuery(null, function (QueryHelper $query) {
+        PluginWemallUserRelation::mQuery(null, function (QueryHelper $query) {
             // 用户搜索查询
-            $db = AccountUser::mQuery()->like('phone|nickname#keys')->db();
+            $db = PluginAccountUser::mQuery()->like('phone|nickname#keys')->db();
             if ($db->getOptions('where')) $query->whereRaw("unid in {$db->field('id')->buildSql()}");
             // 数据条件查询
             $query->with(['bindUser'])->where(['puid1' => $this->unid])->order('id desc');
@@ -46,11 +44,11 @@ class Spread extends Auth
      * 临时绑定推荐人
      * @return void
      */
-    public function spread()
+    public function bind()
     {
         try {
             $input = $this->_vali(['from.require' => '推荐人不能为空！']);
-            $relation = UserUpgrade::bindAgent($this->unid, intval($input['from']), 0);
+            $relation = UserUpgrade::bindAgent($this->relation, intval($input['from']), 0);
             $this->success('绑定推荐人成功！', $relation->toArray());
         } catch (HttpResponseException $exception) {
             throw $exception;

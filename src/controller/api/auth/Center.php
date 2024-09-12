@@ -29,14 +29,13 @@ class Center extends Auth
      */
     public function get()
     {
-        $account = $this->account->get();
-        if (empty($account['user']['extra']['level_name'])) {
-            UserUpgrade::recount($this->unid, true);
-            $account = $this->account->get();
+        $user = $this->account->user()->toArray();
+        if (empty($user['extra']['level_name'])) {
+            UserUpgrade::recount($this->unid);
         }
         $this->success('获取资料成功！', [
-            'account'  => $account,
-            'relation' => $this->relation,
+            'account'  => $this->account->get(false, true),
+            'relation' => $this->relation->toArray(),
         ]);
     }
 

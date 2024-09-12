@@ -4,11 +4,10 @@ declare (strict_types=1);
 
 namespace plugin\wemall;
 
-use plugin\account\model\AccountUser;
-use plugin\payment\model\PaymentRecord;
-use plugin\shop\model\ShopOrder;
+use plugin\shop\service as ShopService;
+use plugin\account\model\PluginAccountUser;
 use plugin\wemall\command\Users;
-use plugin\wemall\model\AccountRelation;
+use plugin\wemall\model\PluginWemallUserRelation;
 use plugin\wemall\service\UserOrder;
 use plugin\wemall\service\UserRebate;
 use plugin\wemall\service\UserUpgrade;
@@ -57,15 +56,15 @@ class Service extends Plugin
                     $where['id'] = $input['from'];
                 }
                 // 判断推荐人是否可
-                $from = AccountUser::mk()->where($where)->findOrEmpty();
+                $from = PluginAccountUser::mk()->where($where)->findOrEmpty();
                 if ($from->isEmpty()) $showError('无效邀请人！');
                 if ($from->getAttr('phone') == $input['phone']) $showError('不能邀请自己！');
-                [$rela] = AccountRelation::withRelation($from->getAttr('id'));
+                [$rela] = PluginWemallUserRelation::withRelation($from->getAttr('id'));
                 if (empty($rela['entry_agent'])) $showError('无邀请权限！');
                 // 检查自己是否已绑定
                 $where = ['phone' => $input['phone'], 'deleted' => 0];
-                if (($user = AccountUser::mk()->where($where)->findOrEmpty())->isExists()) {
-                    [$rela] = AccountRelation::withRelation($user->getAttr('id'));
+                if (($user = PluginAccountUser::mk()->where($where)->findOrEmpty())->isExists()) {
+                    [$rela] = PluginWemallUserRelation::withRelation($user->getAttr('id'));
                     if (!empty($rela['puid1']) && $rela['puid1'] != $from->getAttr('id')) {
                         $showError('该用户已注册');
                     }
@@ -78,7 +77,7 @@ class Service extends Plugin
         $this->app->event->listen('PluginAccountBind', function (array $data) {
             $this->app->log->notice("Event PluginAccountBind {$data['unid']}#{$data['usid']}");
             // 初始化用户关系数据
-            AccountRelation::withInit(intval($data['unid']));
+            PluginWemallUserRelation::withInit(intval($data['unid']));
             // 尝试临时绑定推荐人用户
             $input = $this->app->request->post(['from', 'phone', 'fphone']);
             if (!empty($input['fphone'])) try {
@@ -88,7 +87,7 @@ class Service extends Plugin
                 } else {
                     $map['id'] = $input['from'] ?? 0;
                 }
-                $from = AccountUser::mk()->where($map)->value('id');
+                $from = PluginAccountUser::mk()->where($map)->value('id');
                 if ($from > 0) UserUpgrade::bindAgent(intval($data['unid']), $from, 0);
             } catch (\Exception $exception) {
                 trace_file($exception);
@@ -136,30 +135,27 @@ class Service extends Plugin
     public static function menu(): array
     {
         $code = app(static::class)->appCode;
-        return [
+        return array_merge(ShopService::menu(), [
             [
                 'name' => '商城配置',
                 'subs' => [
-                    ['name' => '数据统计报表', 'icon' => 'layui-icon layui-icon-theme', 'node' => "{$code}/base.report/index"],
-                    ['name' => '商品数据管理', 'icon' => 'layui-icon layui-icon-star', 'node' => "{$code}/shop.goods/index"],
-                    ['name' => '订单数据管理', 'icon' => 'layui-icon layui-icon-template', 'node' => "{$code}/shop.order/index"],
-                ],
-            ],
-            [
-                'name' => '用户返佣',
-                'subs' => [
-                    ['name' => '用户关系管理', 'icon' => 'layui-icon layui-icon-user', 'node' => "{$code}/user.admin/index"],
-                    ['name' => '用户返佣管理', 'icon' => 'layui-icon layui-icon-transfer', 'node' => "{$code}/user.rebate/index"],
-                ],
-            ],
-            [
-                'name' => '等级折扣',
-                'subs' => [
-                    ['name' => '用户等级管理', 'icon' => 'layui-icon layui-icon-senior', 'node' => "{$code}/base.level/index"],
                     ['name' => '用户折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
-                    ['name' => '商城优惠券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/base.coupon/index"],
+                    ['name' => '用户卡券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/base.coupon/index"],
+                    ['name' => '会员折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
+                    ['name' => '商品数据管理', 'icon' => 'layui-icon layui-icon-star', 'node' => "{$code}/shop.goods/index"],
+                ],
+            ],
+            [
+                'name' => '会员代理',
+                'subs' => [
+                    ['name' => '会员用户管理', 'icon' => 'layui-icon layui-icon-user', 'node' => "{$code}/user.admin/index"],
+                    ['name' => '会员等级管理', 'icon' => 'layui-icon layui-icon-water', 'node' => "{$code}/base.level/index"],
+                    ['name' => '创建会员用户', 'icon' => 'layui-icon layui-icon-tabs', 'node' => "{$code}/user.create/index"],
+                    ['name' => '用户余额充值', 'icon' => 'layui-icon layui-icon-rmb', 'node' => "{$code}/user.recharge/index"],
+                    ['name' => '代理等级管理', 'icon' => 'layui-icon layui-icon-water', 'node' => "{$code}/base.agent/index"],
+                    ['name' => '代理返佣管理', 'icon' => 'layui-icon layui-icon-transfer', 'node' => "{$code}/user.rebate/index"],
                 ],
             ]
-        ];
+        ]);
     }
 }

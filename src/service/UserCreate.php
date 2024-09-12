@@ -1,16 +1,15 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\account\model\AccountUser;
+use plugin\account\model\PluginAccountUser;
 use plugin\account\service\Account;
-use plugin\wemall\model\AccountUserCreate;
-use plugin\wemall\model\ShopRebate;
-use plugin\wemall\model\AccountRelation;
-use plugin\payment\model\PaymentTransfer;
+use plugin\wemall\model\PluginWemallUserCreate;
+use plugin\wemall\model\PluginWemallUserRebate;
+use plugin\wemall\model\PluginWemallUserRelation;
+use plugin\wemall\model\PluginWemallUserTransfer;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
 use think\admin\Library;
@@ -24,7 +23,7 @@ abstract class UserCreate
 {
     /**
      * 创建账号及返佣
-     * @param int|string|AccountUserCreate $user
+     * @param int|string|PluginWemallUserCreate $user
      * @return void
      * @throws \think\admin\Exception
      */
@@ -36,8 +35,8 @@ abstract class UserCreate
                 // 检查代理权限
                 if (!empty($data['agent_phone'])) {
                     $where = ['phone' => $data['agent_phone'], 'deleted' => 0];
-                    $parent = AccountUser::mk()->where($where)->findOrEmpty();
-                    $relation = AccountRelation::mk()->where(['unid' => $parent->getAttr('id')])->findOrEmpty();
+                    $parent = PluginAccountUser::mk()->where($where)->findOrEmpty();
+                    $relation = PluginWemallUserRelation::mk()->where(['unid' => $parent->getAttr('id')])->findOrEmpty();
                     if ($parent->isEmpty() || $relation->isEmpty()) throw new Exception('无效推荐人！');
                     if (empty($relation->getAttr('entry_agent'))) throw new Exception('上级无权限！');
                 }
@@ -49,7 +48,7 @@ abstract class UserCreate
                 if (isset($parent)) UserUpgrade::bindAgent($account->getUnid(), intval($parent->getAttr('id')));
                 // 创建返佣记录及提现记录
                 $map = ['code' => $data['rebate_total_code'] ?: CodeExtend::uniqidDate(16, 'R'), 'unid' => $account->getUnid()];
-                ($rebate = ShopRebate::mk()->where($map)->findOrEmpty())->save([
+                ($rebate = PluginWemallUserRebate::mk()->where($map)->findOrEmpty())->save([
                     'unid'         => $account->getUnid(),
                     'code'         => $map['code'],
                     'hash'         => md5($map['code']),
@@ -64,7 +63,7 @@ abstract class UserCreate
                 ]);
                 // 创建提现记录
                 $map = ['code' => $user->getAttr('rebate_usable_code') ?: CodeExtend::uniqidDate(16, 'T'), 'unid' => $account->getUnid()];
-                ($transfer = PaymentTransfer::mk()->where($map)->findOrEmpty())->save([
+                ($transfer = PluginWemallUserTransfer::mk()->where($map)->findOrEmpty())->save([
                     'unid'          => $account->getUnid(),
                     'type'          => 'platform',
                     'date'          => date('Y-m-d'),
@@ -107,12 +106,12 @@ abstract class UserCreate
                 // 取消返佣记录
                 if (!empty($rCode = $user->getAttr('rebate_total_code'))) {
                     $map = ['code' => $rCode, 'unid' => $user->getAttr('unid')];
-                    ShopRebate::mk()->where($map)->delete();
+                    PluginWemallUserRebate::mk()->where($map)->delete();
                 }
                 // 创建提现记录
                 if (!empty($tCode = $user->getAttr('rebate_usable_code'))) {
                     $map = ['code' => $tCode, 'unid' => $user->getAttr('unid')];
-                    PaymentTransfer::mk()->where($map)->delete();
+                    PluginWemallUserTransfer::mk()->where($map)->delete();
                 }
                 // 更新代理身份及返佣记录
                 UserOrder::entry($user->getAttr('unid'));
@@ -127,15 +126,15 @@ abstract class UserCreate
 
     /**
      * 标准化模型
-     * @param string|integer|AccountUserCreate $model
-     * @return \plugin\wemall\model\AccountUserCreate
+     * @param string|integer|PluginWemallUserCreate $model
+     * @return \plugin\wemall\model\PluginWemallUserCreate
      * @throws \think\admin\Exception
      */
-    public static function withModel($model): AccountUserCreate
+    public static function withModel($model): PluginWemallUserCreate
     {
         if (is_numeric($model)) {
-            return AccountUserCreate::mk()->findOrEmpty($model);
-        } elseif ($model instanceof AccountUserCreate) {
+            return PluginWemallUserCreate::mk()->findOrEmpty($model);
+        } elseif ($model instanceof PluginWemallUserCreate) {
             return $model;
         } else {
             throw new Exception('无效参数类型！');

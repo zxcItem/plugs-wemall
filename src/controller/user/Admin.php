@@ -5,49 +5,50 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\user;
 
-use plugin\account\model\AccountUser;
+use plugin\account\model\PluginAccountUser;
 use plugin\account\service\Account;
+use plugin\wemall\model\PluginWemallConfigLevel;
+use plugin\wemall\model\PluginWemallUserRelation;
+use plugin\shop\service\ConfigService;
 use plugin\wemall\service\UserUpgrade;
-use plugin\wemall\model\ShopConfigLevel;
-use plugin\account\model\AccountRelation;
 use think\admin\Controller;
-use think\admin\Exception;
+use think\admin\extend\CodeExtend;
+use think\admin\extend\JwtExtend;
 use think\admin\helper\QueryHelper;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 use think\exception\HttpResponseException;
 
 /**
- * 用户关系管理
+ * 会员用户管理
  * @class Admin
  * @package plugin\wemall\controller\user
  */
 class Admin extends Controller
 {
     /**
-     * 用户关系管理
+     * 会员用户管理
      * @auth true
      * @menu true
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @return void
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function index()
     {
         $this->type = $this->get['type'] ?? 'index';
-        AccountRelation::mQuery()->layTable(function () {
-            $this->title = '用户关系管理';
-            $this->upgrades = ShopConfigLevel::items();
+        PluginWemallUserRelation::mQuery()->layTable(function () {
+            $this->title = '会员用户管理';
+            $this->upgrades = PluginWemallConfigLevel::items();
         }, function (QueryHelper $query) {
+            // 如果传了UNID，不展示下级及自己
             if (!empty($this->get['unid'])) {
-                $query->where('unid', '<>', $this->get['unid']);
                 $query->whereNotLike("path", "%,{$this->get['unid']},%");
+                $query->where(['entry_agent' => 1])->where('unid', '<>', $this->get['unid']);
             }
             $query->with(['user', 'agent1', 'agent2', 'user1', 'user2'])->equal('level_code');
             // 用户内容查询
-            $user = AccountUser::mQuery()->dateBetween('create_time');
-            $user->equal('status')->like('code|phone|username|nickname#user');
+            $user = PluginAccountUser::mQuery()->dateBetween('create_time');
+            $user->equal('entry_agent')->like('code|phone|username|nickname#user');
             $user->where(['status' => intval($this->type === 'index'), 'deleted' => 0]);
             $query->whereRaw("unid in {$user->db()->field('id')->buildSql()}");
         });
@@ -60,7 +61,7 @@ class Admin extends Controller
      */
     public function sync()
     {
-        $this->_queue('刷新会员用户数据', 'plugin:mall:users');
+        $this->_queue('刷新会员用户数据', 'xdata:mall:users');
     }
 
     /**
@@ -70,14 +71,14 @@ class Admin extends Controller
      */
     public function edit()
     {
-        AccountRelation::mQuery()->with('user')->mForm('form', 'unid');
+        PluginWemallUserRelation::mQuery()->with('user')->mForm('form', 'unid');
     }
 
     /**
      * 表单数据处理
      * @param array $data
      * @return void
-     * @throws Exception
+     * @throws \think\admin\Exception
      */
     protected function _edit_form_filter(array $data)
     {
@@ -99,7 +100,7 @@ class Admin extends Controller
      */
     public function state()
     {
-        AccountRelation::mSave($this->_vali([
+        PluginAccountUser::mSave($this->_vali([
             'status.in:0,1'  => '状态值范围异常！',
             'status.require' => '状态值不能为空！',
         ]));
@@ -111,16 +112,30 @@ class Admin extends Controller
      */
     public function remove()
     {
-        AccountRelation::mDelete();
+        PluginAccountUser::mDelete();
+    }
+
+    /**
+     * 模拟用户登录
+     * @auth true
+     * @return void
+     * @throws \think\admin\Exception
+     */
+    public function view()
+    {
+        $data = $this->_vali(['unid.require' => '编号不能为空！']);
+        $token = CodeExtend::encrypt($data, JwtExtend::jwtkey());
+        $domain = ConfigService::get('base_domain');
+        $this->redirect("{$domain}?autologin={$token}");
     }
 
     /**
      * 修改用户上级
      * @auth true
      * @return void
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function parent()
     {
@@ -128,9 +143,9 @@ class Admin extends Controller
             $this->index();
         } else try {
             $data = $this->_vali(['unid.require' => '用户编号为空！', 'puid.require' => '上级编号为空！']);
-            $parent = AccountRelation::mQuery()->where(['unid' => $data['puid']])->findOrEmpty();
+            $parent = PluginWemallUserRelation::mQuery()->where(['unid' => $data['puid']])->findOrEmpty();
             if ($parent->isEmpty()) $this->error('上级用户不存在！');
-            $relation = AccountRelation::sync(intval($data['unid']));
+            $relation = PluginWemallUserRelation::withInit(intval($data['unid']));
             if (stripos($parent->getAttr('path'), ",{$data['unid']},") !== false) {
                 $this->error('无法设置下级为自己的上级！');
             }
