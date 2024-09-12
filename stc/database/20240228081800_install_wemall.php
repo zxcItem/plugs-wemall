@@ -1,9 +1,6 @@
 <?php
 
-use plugin\wemall\Service;
-use think\admin\extend\PhinxExtend;
 use think\migration\Migrator;
-use think\migration\db\Column;
 
 class InstallWemall extends Migrator
 {

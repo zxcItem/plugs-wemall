@@ -5,13 +5,13 @@ declare (strict_types=1);
 namespace plugin\wemall\service;
 
 use plugin\account\model\PluginAccountUser;
+use plugin\transfer\model\PluginUserTransfer;
 use plugin\wemall\model\PluginWemallConfigDiscount;
 use plugin\wemall\model\PluginWemallConfigLevel;
 use plugin\wemall\model\PluginWemallConfigRebate;
 use plugin\shop\model\PluginShopOrder;
 use plugin\wemall\model\PluginWemallUserRebate;
 use plugin\wemall\model\PluginWemallUserRelation;
-use plugin\wemall\model\PluginWemallUserTransfer;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
 use think\admin\Library;
@@ -224,7 +224,7 @@ abstract class UserRebate
         if ($isUpdate = !is_array($data)) $data = [];
         if ($unid > 0) {
             $total = PluginWemallUserRebate::mk()->where($where)->whereRaw("unid='{$unid}' and deleted=0")->sum('amount');
-            $count = PluginWemallUserTransfer::mk()->where($where)->whereRaw("unid='{$unid}' and status>0")->sum('amount');
+            $count = PluginUserTransfer::mk()->where($where)->whereRaw("unid='{$unid}' and status>0")->sum('amount');
             $locks = PluginWemallUserRebate::mk()->where($where)->whereRaw("unid='{$unid}' and status=0 and deleted=0")->sum('amount');
             $usable = round($total - $count - $locks, 2);
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock'], $data['rebate_usable']] = [$total, $count, $locks, $usable];
@@ -233,7 +233,7 @@ abstract class UserRebate
             }
         } else {
             $total = PluginWemallUserRebate::mk()->where($where)->whereRaw("deleted=0")->sum('amount');
-            $count = PluginWemallUserTransfer::mk()->where($where)->whereRaw("status>0")->sum('amount');
+            $count = PluginUserTransfer::mk()->where($where)->whereRaw("status>0")->sum('amount');
             $locks = PluginWemallUserRebate::mk()->where($where)->whereRaw("status=0 and deleted=0")->sum('amount');
             $usable = round($total - $count - $locks, 2);
             [$data['rebate_total'], $data['rebate_used'], $data['rebate_lock'], $data['rebate_usable']] = [$total, $count, $locks, $usable];

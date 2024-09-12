@@ -5,6 +5,8 @@ declare (strict_types=1);
 namespace plugin\wemall;
 
 use plugin\shop\service as ShopService;
+use plugin\account\service as AccountService;
+use plugin\payment\service as PaymentService;
 use plugin\account\model\PluginAccountUser;
 use plugin\wemall\command\Users;
 use plugin\wemall\model\PluginWemallUserRelation;
@@ -135,12 +137,11 @@ class Service extends Plugin
     public static function menu(): array
     {
         $code = app(static::class)->appCode;
-        return array_merge(ShopService::menu(), [
+        return [
             [
                 'name' => '商城配置',
                 'subs' => [
-                    ['name' => '用户折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
-                    ['name' => '用户卡券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/base.coupon/index"],
+                    ['name' => '用户卡券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/user.coupon/index"],
                     ['name' => '会员折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
                     ['name' => '商品数据管理', 'icon' => 'layui-icon layui-icon-star', 'node' => "{$code}/shop.goods/index"],
                 ],
@@ -156,6 +157,6 @@ class Service extends Plugin
                     ['name' => '代理返佣管理', 'icon' => 'layui-icon layui-icon-transfer', 'node' => "{$code}/user.rebate/index"],
                 ],
             ]
-        ]);
+        ];
     }
 }

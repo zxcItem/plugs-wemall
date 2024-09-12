@@ -6,10 +6,10 @@ namespace plugin\wemall\service;
 
 use plugin\account\model\PluginAccountUser;
 use plugin\account\service\Account;
+use plugin\transfer\model\PluginUserTransfer;
 use plugin\wemall\model\PluginWemallUserCreate;
 use plugin\wemall\model\PluginWemallUserRebate;
 use plugin\wemall\model\PluginWemallUserRelation;
-use plugin\wemall\model\PluginWemallUserTransfer;
 use think\admin\Exception;
 use think\admin\extend\CodeExtend;
 use think\admin\Library;
@@ -63,7 +63,7 @@ abstract class UserCreate
                 ]);
                 // 创建提现记录
                 $map = ['code' => $user->getAttr('rebate_usable_code') ?: CodeExtend::uniqidDate(16, 'T'), 'unid' => $account->getUnid()];
-                ($transfer = PluginWemallUserTransfer::mk()->where($map)->findOrEmpty())->save([
+                ($transfer = PluginUserTransfer::mk()->where($map)->findOrEmpty())->save([
                     'unid'          => $account->getUnid(),
                     'type'          => 'platform',
                     'date'          => date('Y-m-d'),
@@ -111,7 +111,7 @@ abstract class UserCreate
                 // 创建提现记录
                 if (!empty($tCode = $user->getAttr('rebate_usable_code'))) {
                     $map = ['code' => $tCode, 'unid' => $user->getAttr('unid')];
-                    PluginWemallUserTransfer::mk()->where($map)->delete();
+                    PluginUserTransfer::mk()->where($map)->delete();
                 }
                 // 更新代理身份及返佣记录
                 UserOrder::entry($user->getAttr('unid'));
