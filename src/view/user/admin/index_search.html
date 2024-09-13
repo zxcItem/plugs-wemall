@@ -6,9 +6,10 @@
             <input class="layui-input" name="user" placeholder="请输入用户账号" value="{$get.user|default=''}">
         </label>
     </div>
+
     <!--{notempty name='upgrades'}-->
     <div class="layui-form-item layui-inline">
-        <label class="layui-form-label">用户等级</label>
+        <label class="layui-form-label">会员等级</label>
         <div class="layui-input-inline">
             <select class="layui-select" name="level_code">
                 <option value="">-- 全部 --</option>
@@ -21,6 +22,23 @@
         </div>
     </div>
     <!--{/notempty}-->
+
+
+    <div class="layui-form-item layui-inline">
+        <label class="layui-form-label">推广权限</label>
+        <div class="layui-input-inline">
+            <select class="layui-select" name="level_agent">
+                <option value="">-- 全部 --</option>
+                {foreach ['无推广权限','有推广权限'] as $k=>$v}
+                {if isset($get.level_agent) and $get.level_agent eq $k}
+                <option selected value="{$k}">{$v}</option>
+                {else}
+                <option value="{$k}">{$v}</option>
+                {/if}{/foreach}
+            </select>
+        </div>
+    </div>
+
 
     <div class="layui-form-item layui-inline">
         <label class="layui-form-label">注册时间</label>
@@ -50,12 +68,13 @@
                     item.user.nickname || '-',
                     item.user.phone || '-',
                     item.user.email || '-',
+                    'VIP' + (item.level_code || '0') + ' ' + (item.level_name || ''),
                     item.user.create_time || '',
                 ];
             });
 
             // 设置表头内容
-            data.unshift(['ID', '用户编号', '用户姓名', '用户昵称', '关联手机', '绑定邮箱', '注册时间']);
+            data.unshift(['ID', '用户编号', '用户姓名', '用户昵称', '关联手机', '绑定邮箱', '会员等级', '注册时间']);
 
             // 应用表格样式
             return this.withStyle(data, {H: 120});
