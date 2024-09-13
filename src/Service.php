@@ -141,7 +141,6 @@ class Service extends Plugin
             [
                 'name' => '商城配置',
                 'subs' => [
-                    ['name' => '用户卡券管理', 'icon' => 'layui-icon layui-icon-form', 'node' => "{$code}/user.coupon/index"],
                     ['name' => '会员折扣方案', 'icon' => 'layui-icon layui-icon-engine', 'node' => "{$code}/base.discount/index"],
                     ['name' => '商品数据管理', 'icon' => 'layui-icon layui-icon-star', 'node' => "{$code}/shop.goods/index"],
                 ],
