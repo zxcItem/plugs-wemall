@@ -9,10 +9,7 @@
         }
     ],
     "require": {
-        "php": ">7.1",
-        "xiaochao/plugs-account": "dev-master",
-        "xiaochao/plugs-shop": "dev-master",
-        "xiaochao/plugs-payment": "dev-master"
+        "php": ">7.1"
     },
     "autoload": {
         "psr-4": {

@@ -5,8 +5,8 @@ declare (strict_types=1);
 namespace plugin\wemall\service;
 
 use plugin\account\model\PluginAccountUser;
-use plugin\payment\service\Balance;
-use plugin\payment\service\Integral;
+use plugin\fund\service\Balance;
+use plugin\fund\service\Integral;
 use plugin\shop\service\UserAction;
 use plugin\wemall\model\PluginWemallConfigLevel;
 use plugin\shop\model\PluginShopOrder;

@@ -4,17 +4,16 @@ declare (strict_types=1);
 
 namespace plugin\wemall\controller\api\auth;
 
-use plugin\payment\model\PaymentAddress;
-use plugin\payment\service\IntegralService;
+use plugin\payment\model\PluginPaymentAddress;
+use plugin\fund\service\Integral;
 use plugin\payment\service\Payment;
 use plugin\wemall\controller\api\Auth;
-use plugin\shop\model\ShopOrder;
-use plugin\shop\model\ShopOrderCart;
-use plugin\shop\model\ShopOrderItem;
-use plugin\wemall\service\GoodsService;
+use plugin\shop\model\PluginShopOrder;
+use plugin\shop\model\PluginShopOrderCart;
+use plugin\shop\model\PluginShopOrderItem;
+use plugin\shop\service\GoodsService;
 use plugin\shop\service\UserAction;
-use plugin\shop\service\UserOrder;
-use plugin\wemall\service\UserOrder as MallUserOrder;
+use plugin\wemall\service\UserOrder;
 use plugin\wemall\service\UserUpgrade;
 use think\admin\extend\CodeExtend;
 use think\exception\HttpResponseException;
@@ -35,13 +34,17 @@ class Order extends Auth
     {
         try {
             // 请求参数检查
-            $input = $this->_vali(['carts.default' => '', 'rules.default' => '', 'agent.default' => '0']);
+            $input = $this->_vali([
+                'carts.default' => '',
+                'rules.default' => '',
+                'agent.default' => '0',
+            ]);
             if (empty($input['rules']) && empty($input['carts'])) $this->error('参数无效！');
             // 绑定代理数据
-            $order = UserUpgrade::withAgent($this->unid, intval($input['agent']), $this->relation);
+            $order = UserUpgrade::withAgent($this->relation, intval($input['agent']));
             // 生成统一编号
             do $extra = ['order_no' => $order['order_no'] = CodeExtend::uniqidNumber(16, 'N')];
-            while (ShopOrder::mk()->master()->where($extra)->findOrEmpty()->isExists());
+            while (PluginShopOrder::mk()->master()->where($extra)->findOrEmpty()->isExists());
             [$items, $deliveryType] = [[], 0];
             // 组装订单数据
             foreach (GoodsService::parse($this->unid, trim($input['rules'], ':;'), $input['carts']) as $item) {
@@ -52,9 +55,9 @@ class Order extends Auth
                 if (empty($deliveryType) && $goods['delivery_code'] !== 'NONE') $deliveryType = 1;
                 // 限制购买数量
                 if (isset($goods['limit_maxnum']) && $goods['limit_maxnum'] > 0) {
-                    $join = [ShopOrderItem::mk()->getTable() => 'b'];
-                    $where = [['a.unid', '=', $this->unid], ['a.status', 'in', [2, 3, 4, 5]], ['b.gcode', '=', $goods['code']]];
-                    $buyCount = ShopOrder::mk()->alias('a')->join($join, 'a.order_no=b.order_no')->where($where)->sum('b.stock_sales');
+                    $join = [PluginShopOrderItem::mk()->getTable() => 'b'];
+                    $where = [['a.unid', '=', $this->unid], ['a.status', '>', 1], ['b.gcode', '=', $goods['code']]];
+                    $buyCount = PluginShopOrder::mk()->alias('a')->join($join, 'a.order_no=b.order_no')->where($where)->sum('b.stock_sales');
                     if ($buyCount + $count > $goods['limit_maxnum']) $this->error('商品限购！');
                 }
                 // 限制购买身份
@@ -62,7 +65,7 @@ class Order extends Auth
                 // 商品库存检查
                 if ($gspec['stock_sales'] + $count > $gspec['stock_total']) $this->error('库存不足！');
                 // 商品折扣处理
-                [$discountId, $discountRate] = MallUserOrder::discount($goods['discount_id'], $this->levelCode);
+                [$discountId, $discountRate] = UserOrder::discount($goods['discount_id'], $this->levelCode);
                 // 订单详情处理
                 $items[] = [
                     'unid'                  => $order['unid'],
@@ -92,9 +95,10 @@ class Order extends Auth
                     'total_allow_integral'  => $gspec['allow_integral'] * $count,
                     'total_reward_balance'  => $gspec['reward_balance'] * $count,
                     'total_reward_integral' => $gspec['reward_integral'] * $count,
-                    // 用户等级
+                    // 会员等级
                     'level_code'            => $this->levelCode,
                     'level_name'            => $this->relation->getAttr('level_name'),
+                    'level_agent'           => $goods['level_agent'],
                     'level_upgrade'         => $goods['level_upgrade'],
                     // 是否参与返佣
                     'rebate_type'           => $goods['rebate_type'],
@@ -111,10 +115,13 @@ class Order extends Auth
             $order['allow_integral'] = array_sum(array_column($items, 'total_allow_integral'));
             $order['reward_balance'] = array_sum(array_column($items, 'total_reward_balance'));
             $order['reward_integral'] = array_sum(array_column($items, 'total_reward_integral'));
+            // 会员及代理升级
+            $order['level_agent'] = intval(max(array_column($items, 'level_agent')));
+            $order['level_member'] = intval(max(array_column($items, 'level_upgrade')));
             // 订单发货类型
             $order['status'] = $deliveryType ? 1 : 2;
             $order['delivery_type'] = $deliveryType;
-            $order['ratio_integral'] = IntegralService::ratio();
+            $order['ratio_integral'] = Integral::ratio();
             // 统计商品数量
             $order['number_goods'] = array_sum(array_column($items, 'stock_sales'));
             $order['number_express'] = array_sum(array_column($items, 'delivery_count'));
@@ -129,17 +136,17 @@ class Order extends Auth
                 $order['amount_reduct'] = $order['amount_goods'];
             }
             // 统计订单金额
-            $order['amount_real'] = $order['amount_discount'] - $order['amount_reduct'];
+            $order['amount_real'] = round($order['amount_discount'] - $order['amount_reduct'], 2);
             $order['amount_total'] = $order['amount_goods'];
-            $order['amount_profit'] = $order['amount_real'] - $order['amount_cost'];
+            $order['amount_profit'] = round($order['amount_real'] - $order['amount_cost']);
             // 写入商品数据
-            $this->app->db->transaction(function () use ($order, $items) {
-                ($model = ShopOrder::mk())->save($order);
-                ShopOrderItem::mk()->saveAll($items);
+            $model = PluginShopOrder::mk();
+            $this->app->db->transaction(function () use ($order, $items, &$model) {
+                $model->save($order) && PluginShopOrderItem::mk()->saveAll($items);
                 // 设置收货地址
                 if ($order['delivery_type']) {
                     $where = ['unid' => $this->unid, 'deleted' => 0];
-                    $address = PaymentAddress::mk()->where($where)->order('type desc,id desc')->findOrEmpty();
+                    $address = PluginPaymentAddress::mk()->where($where)->order('type desc,id desc')->findOrEmpty();
                     $address->isExists() && UserOrder::perfect($model->refresh(), $address);
                 }
             });
@@ -149,7 +156,7 @@ class Order extends Auth
             }
             // 清理购物车数据
             if (count($carts = str2arr($input['carts'])) > 0) {
-                ShopOrderCart::mk()->whereIn('id', $carts)->delete();
+                PluginShopOrderCart::mk()->whereIn('id', $carts)->delete();
                 UserAction::recount($this->unid);
             }
             // 触发订单创建事件
@@ -157,13 +164,14 @@ class Order extends Auth
             // 无需发货且无需支付，直接完成支付流程
             if ($order['status'] === 2 && empty($order['amount_real'])) {
                 Payment::emptyPayment($this->account, $order['order_no']);
-                $this->success('下单成功！', ShopOrder::mk()->where(['order_no' => $order['order_no']])->findOrEmpty()->toArray());
+                $this->success('下单成功！', $model->toArray());
             }
             // 返回处理成功数据
             $this->success('下单成功！', array_merge($order, ['items' => $items]));
         } catch (HttpResponseException $exception) {
             throw $exception;
         } catch (\Exception $exception) {
+            trace_file($exception);
             $this->error("下单失败，{$exception->getMessage()}");
         }
     }

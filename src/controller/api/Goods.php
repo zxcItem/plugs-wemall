@@ -6,7 +6,7 @@ namespace plugin\wemall\controller\api;
 
 use plugin\shop\model\PluginShopGoods;
 use plugin\shop\model\PluginShopGoodsCate;
-use plugin\wemall\model\PluginWemallUserCoupon;
+use plugin\coupon\model\PluginCouponUserCoupon;
 use think\admin\Controller;
 use think\admin\helper\QueryHelper;
 use think\db\Query;
@@ -31,7 +31,7 @@ class Goods extends Controller
             // 根据优惠券展示商品
             if ($couponCode = input('coupon')) {
                 $where = ['code' => $couponCode, 'deleted' => 0];
-                $userCoupon = PluginWemallUserCoupon::mk()->where($where)->findOrEmpty();
+                $userCoupon = PluginCouponUserCoupon::mk()->where($where)->findOrEmpty();
                 if ($userCoupon->isEmpty()) $this->error('无效优惠券！');
                 // 追加卡券信息到商品信息
                 $map = ['status' => 1, 'deleted' => 0];

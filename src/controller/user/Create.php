@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace plugin\wemall\controller\user;
@@ -12,7 +11,6 @@ use plugin\wemall\model\PluginWemallUserRelation;
 use plugin\wemall\service\UserCreate;
 use think\admin\Controller;
 use think\admin\helper\QueryHelper;
-use think\admin\model\SystemUser;
 
 /**
  * 创建会员用户

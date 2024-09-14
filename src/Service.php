@@ -4,9 +4,6 @@ declare (strict_types=1);
 
 namespace plugin\wemall;
 
-use plugin\shop\service as ShopService;
-use plugin\account\service as AccountService;
-use plugin\payment\service as PaymentService;
 use plugin\account\model\PluginAccountUser;
 use plugin\wemall\command\Users;
 use plugin\wemall\model\PluginWemallUserRelation;
@@ -151,7 +148,6 @@ class Service extends Plugin
                     ['name' => '会员用户管理', 'icon' => 'layui-icon layui-icon-user', 'node' => "{$code}/user.admin/index"],
                     ['name' => '会员等级管理', 'icon' => 'layui-icon layui-icon-water', 'node' => "{$code}/base.level/index"],
                     ['name' => '创建会员用户', 'icon' => 'layui-icon layui-icon-tabs', 'node' => "{$code}/user.create/index"],
-                    ['name' => '用户余额充值', 'icon' => 'layui-icon layui-icon-rmb', 'node' => "{$code}/user.recharge/index"],
                     ['name' => '代理等级管理', 'icon' => 'layui-icon layui-icon-water', 'node' => "{$code}/base.agent/index"],
                     ['name' => '代理返佣管理', 'icon' => 'layui-icon layui-icon-transfer', 'node' => "{$code}/user.rebate/index"],
                 ],

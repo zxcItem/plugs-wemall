@@ -33,12 +33,11 @@ class InstallWemall extends Migrator
         $this->_create_plugin_wemall_config_rebate();
         $this->_create_plugin_wemall_user_create();
         $this->_create_plugin_wemall_user_rebate();
-        $this->_create_plugin_wemall_user_recharge();
         $this->_create_plugin_wemall_user_relation();
     }
 
     /**
-     * 创建数据对象
+     * 商城-配置-等级
      * @class PluginWemallConfigAgent
      * @table plugin_wemall_config_agent
      * @return void
@@ -78,7 +77,7 @@ class InstallWemall extends Migrator
     }
 
     /**
-     * 创建数据对象
+     * 商城-配置-折扣
      * @class PluginWemallConfigDiscount
      * @table plugin_wemall_config_discount
      * @return void
@@ -115,7 +114,7 @@ class InstallWemall extends Migrator
     }
 
     /**
-     * 创建数据对象
+     * 商城-配置-等级
      * @class PluginWemallConfigLevel
      * @table plugin_wemall_config_level
      * @return void
@@ -156,7 +155,7 @@ class InstallWemall extends Migrator
     }
 
     /**
-     * 创建数据对象
+     * 商城-配置-返利
      * @class PluginWemallConfigRebate
      * @table plugin_wemall_config_rebate
      * @return void
@@ -217,7 +216,7 @@ class InstallWemall extends Migrator
 
 
     /**
-     * 创建数据对象
+     * 商城-用户-创建
      * @class PluginWemallUserCreate
      * @table plugin_wemall_user_create
      * @return void
@@ -268,7 +267,7 @@ class InstallWemall extends Migrator
     }
 
     /**
-     * 创建数据对象
+     * 商城-用户-返利
      * @class PluginWemallUserRebate
      * @table plugin_wemall_user_rebate
      * @return void
@@ -322,48 +321,7 @@ class InstallWemall extends Migrator
     }
 
     /**
-     * 创建数据对象
-     * @class PluginWemallUserRecharge
-     * @table plugin_wemall_user_recharge
-     * @return void
-     */
-    private function _create_plugin_wemall_user_recharge()
-    {
-
-        // 当前数据表
-        $table = 'plugin_wemall_user_recharge';
-
-        // 存在则跳过
-        if ($this->hasTable($table)) return;
-
-        // 创建数据表
-        $this->table($table, [
-            'engine' => 'InnoDB', 'collation' => 'utf8mb4_general_ci', 'comment' => '商城-用户-充值',
-        ])
-            ->addColumn('unid', 'biginteger', ['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '账号编号'])
-            ->addColumn('code', 'string', ['limit' => 20, 'default' => '', 'null' => true, 'comment' => '操作编号'])
-            ->addColumn('name', 'string', ['limit' => 200, 'default' => '', 'null' => true, 'comment' => '操作名称'])
-            ->addColumn('remark', 'string', ['limit' => 999, 'default' => '', 'null' => true, 'comment' => '操作备注'])
-            ->addColumn('amount', 'decimal', ['precision' => 20, 'scale' => 2, 'default' => '0.00', 'null' => true, 'comment' => '操作金额'])
-            ->addColumn('deleted', 'integer', ['limit' => 1, 'default' => 0, 'null' => true, 'comment' => '删除状态(0未删除,1已删除)'])
-            ->addColumn('create_by', 'biginteger', ['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '系统用户'])
-            ->addColumn('deleted_by', 'biginteger', ['limit' => 20, 'default' => 0, 'null' => true, 'comment' => '系统用户'])
-            ->addColumn('create_time', 'datetime', ['default' => NULL, 'null' => true, 'comment' => '创建时间'])
-            ->addColumn('deleted_time', 'datetime', ['default' => NULL, 'null' => true, 'comment' => '删除时间'])
-            ->addColumn('update_time', 'datetime', ['default' => NULL, 'null' => true, 'comment' => '更新时间'])
-            ->addIndex('unid', ['name' => 'id6918c8c5_unid'])
-            ->addIndex('code', ['name' => 'id6918c8c5_code'])
-            ->addIndex('deleted', ['name' => 'id6918c8c5_deleted'])
-            ->addIndex('create_time', ['name' => 'id6918c8c5_create_time'])
-            ->addIndex('deleted_time', ['name' => 'id6918c8c5_deleted_time'])
-            ->create();
-
-        // 修改主键长度
-        $this->table($table)->changeColumn('id', 'integer', ['limit' => 11, 'identity' => true]);
-    }
-
-    /**
-     * 创建数据对象
+     * 商城-用户-关系
      * @class PluginWemallUserRelation
      * @table plugin_wemall_user_relation
      * @return void

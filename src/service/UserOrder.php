@@ -4,13 +4,12 @@ declare (strict_types=1);
 
 namespace plugin\wemall\service;
 
-use plugin\payment\model\PluginPaymentAddress;
+use plugin\coupon\service\UserCoupon;
 use plugin\payment\model\PluginPaymentRecord;
 use plugin\payment\service\Payment;
 use plugin\wemall\model\PluginWemallConfigDiscount;
 use plugin\shop\model\PluginShopOrder;
-use plugin\shop\model\PluginShopOrderItem;
-use plugin\shop\model\PluginShopOrderSender;
+use plugin\shop\service\UserOrder as ShopUserOrder;
 use plugin\wemall\model\PluginWemallUserCreate;
 use plugin\wemall\model\PluginWemallUserRelation;
 use think\admin\Exception;
@@ -21,7 +20,7 @@ use think\admin\Library;
  * @class UserOrder
  * @package plugin\wemall\service
  */
-abstract class UserOrder
+abstract class UserOrder extends ShopUserOrder
 {
     /**
      * 获取订单模型
